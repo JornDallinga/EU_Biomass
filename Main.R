@@ -100,11 +100,12 @@ Year <- 2000
 
 
 # downloading tree cover data from Hansen (Global Forest Watch)
+# can take some time!!
 H <- Hansen(input, Threshold, Year, download_loc, output)
 
 # plot
 plot(H[[1]])
-plot(union_points, add = T)
+plot(input, add = T)
 
 # set features to NA if below/above a certain threshold (here landscape.division.index > .15)
 for (i in 1:length(rastopol)){
@@ -132,6 +133,11 @@ writeOGR(pol_sel, dsn = paste0(getwd(), '/data/Output'), layer = "pol_sel_NL", d
 
 # -------------------------------------------------------------------------------------------------------------- #
 
-# Read biomass points
-ref_data <- readOGR(dsn = "C:/R_Projects/Biomass_Europe/data/Output", layer = "pol_sel_NL")
+# Read biomass polygons
+ref_pol <- readOGR(dsn = "C:/R_Projects/Biomass_Europe/data/Output", layer = "pol_sel_NL")
+
+# select intersecting points from rasterized polygons
+ref_data <- crop(df_final, ref_pol)
+
+# -------------------------------------------------------------------------------------------------------------- #
 

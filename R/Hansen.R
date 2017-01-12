@@ -9,14 +9,16 @@ Hansen <- function(input, Threshold, year = Year, download_loc ,output){
   ## Download GFC data
   download_tiles(tiles, download_loc)
   
+  cat("---- extraction ----")
   ## Extract data from tiles
-  gfc_extract <- extract_gfc(aoi, download_loc, filename= paste0(output,"GFC_extract.tif"), overwrite=TRUE, data_year = 2015)
+  gfc_extract <- extract_gfc(aoi, download_loc, filename= paste0(output,"GFC_extract.tif"), overwrite=TRUE, data_year = 2015, progress = 'text')
+  cat("---- extraction done ----")
   
-  
+  cat("---- applying threshold ----")
   ## Apply threshold to extracted data 
   gfc_thresholded <- threshold_gfc(gfc_extract, Threshold=Threshold, 
-                                   filename= paste0(output,"GFC_extract_thresholded.tif"), overwrite=TRUE)
-  
+                                   filename= paste0(output,"GFC_extract_thresholded.tif"), overwrite=TRUE, progress = 'text')
+  cat("---- applying threshold done ----")
   ## Masking for water perc calculations
   #mask_water <- mask(gfc_thresholded, aoi)
   names(gfc_thresholded) <- c('forest2000','lossyear','gain','lossgain','datamask')
@@ -35,7 +37,7 @@ Hansen <- function(input, Threshold, year = Year, download_loc ,output){
   #subset_Year <- subset(annual_Hansen, subset = select_y)
   
   #-----
-
+  cat("---- extraction ----")
   
   #-----
   
