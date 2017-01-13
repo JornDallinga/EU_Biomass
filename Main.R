@@ -1,9 +1,10 @@
 # Libaries
-require(rgdal)
-require(rgeos)
-require(raster)
-require(gfcanalysis)
-require(SDMTools)
+
+if (!require(rgdal)) install.packages('rgdal')
+if (!require(rgeos)) install.packages('rgeos')
+if (!require(raster)) install.packages('raster')
+if (!require(gfcanalysis)) install.packages('gfcanalysis')
+if (!require(SDMTools)) install.packages('SDMTools')
 
 # load functions
 source("R/hansen.R")
