@@ -11,13 +11,14 @@ source("R/hansen.R")
 source("R/SDM_function.R")
 
 # Read biomass points
-shape <- readOGR(dsn = "C:/R_Projects/Biomass_Europe/Ref_datasets/Netherlands", layer = "Netherlands_NFI")
+shape <- readOGR(dsn = "./Ref_datasets/Netherlands", layer = "Netherlands_NFI")
 # Transform coordinate system
 BufferWGS <- spTransform(shape, CRS("+proj=longlat +datum=WGS84"))
 
 # Read Raster
-list.files('C:/R_Projects/Biomass_Europe/Maps/Gallaun/1km')
-ras <- raster('C:/R_Projects/Biomass_Europe/Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif')
+getwd()
+list.files('./Maps/Gallaun/1km')
+ras <- raster('./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur_Crop.tif')
 
 # -------------------------------------------------------------------------------------------------------------- #
 
@@ -135,10 +136,16 @@ writeOGR(pol_sel, dsn = paste0(getwd(), '/data/Output'), layer = "pol_sel_NL", d
 # -------------------------------------------------------------------------------------------------------------- #
 
 # Read biomass polygons
-ref_pol <- readOGR(dsn = "C:/R_Projects/Biomass_Europe/data/Output", layer = "pol_sel_NL")
+ref_pol <- readOGR(dsn = "./data/Output", layer = "pol_sel_NL")
 
 # select intersecting points from rasterized polygons
 ref_data <- crop(df_final, ref_pol)
 
 # -------------------------------------------------------------------------------------------------------------- #
+
+# Rasterize points 
+# The whole upper section of this script can be simplified by running the rasterize function,
+# instead of keep working with spatialpointsdataframes
+ref_ras <- rasterize(ref_data, ras, ref_data$bmAg_JR2000_ll_1km_eur_Crop, fun=mean) 
+writeRaster(ref_ras, filename = './Maps/Ref/ref_ras.tif') 
 

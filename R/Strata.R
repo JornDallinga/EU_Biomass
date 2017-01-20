@@ -65,6 +65,7 @@ plot(VCF)
 freq(VCF)
 
 # reclassify VCF
+#!!!! Not needed when using Kmeans
 VCF_new <- VCF
 VCF_new[VCF1 >= 0 & VCF1 <= 12.5] <- 1
 VCF_new[VCF >= 12.6 & VCF <= 25] <- 2
@@ -93,3 +94,23 @@ writeRaster(VCF_crop, filename = 'Covariates/Landsat_VCF_2005/VCF_crop.tif', ove
 # -------------------------------------------------------------------------------------------------------------- #
 
 bac_resample <- resample(bac, saa, method = 'ngb')
+
+# -------------------------------------------------------------------------------------------------------------- #
+
+# LOAD Height
+Height <- raster("./Covariates/Height/Height_crop.tif")
+unique(Height)
+
+# reclassify Height
+#!!!! Not needed when using Kmeans
+Height_new <- Height
+Height_new[Height >= 0 & Height <= 4.25] <- 1
+Height_new[Height >= 5 & Height <= 8.5] <- 2
+Height_new[Height >= 8.6 & Height <= 12.75] <- 3
+Height_new[Height >= 12.76 & Height <= 17] <- 4
+Height_new[Height >= 17.1 & Height <= 21.25] <- 5
+Height_new[Height >= 21.26 & Height <= 25.5] <- 6
+Height_new[Height >= 25.6 & Height <= 29.75] <- 7
+Height_new[Height >= 29.76 & Height <= 34] <- 8
+
+writeRaster(Height_new, filename = './Covariates/Height/Height_reclass_crop.tif')
