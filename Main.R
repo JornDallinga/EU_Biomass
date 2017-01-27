@@ -5,15 +5,28 @@ if (!require(rgeos)) install.packages('rgeos')
 if (!require(raster)) install.packages('raster')
 if (!require(gfcanalysis)) install.packages('gfcanalysis')
 if (!require(SDMTools)) install.packages('SDMTools')
+if (!require(devtools)) install.packages("devtools")
+if (!require(MODIS)) install.packages("MODIS", repos="http://R-Forge.R-project.org")
+if (!require(RCurl)) install.packages('RCurl')
+devtools::install_github('JornDallinga/VCF')
+if (!require(VCF)) install.packages('VCF')
 
 # load functions
 source("R/hansen.R")
 source("R/SDM_function.R")
+source("R/listing_files.R")
+source("R/Unpack_VCF.R")
+source("R/VCF.R")
+source("R/Mosaic_Raster.R")
+
 
 # Read biomass points
 shape <- readOGR(dsn = "./Ref_datasets/Netherlands", layer = "Netherlands_NFI")
 # Transform coordinate system
 BufferWGS <- spTransform(shape, CRS("+proj=longlat +datum=WGS84"))
+# country of analysis
+ccodes()
+Country <- 'NLD' # Netherlands
 
 # Read Raster
 getwd()
@@ -148,4 +161,22 @@ ref_data <- crop(df_final, ref_pol)
 # instead of keep working with spatialpointsdataframes
 ref_ras <- rasterize(ref_data, ras, ref_data$bmAg_JR2000_ll_1km_eur_Crop, fun=mean) 
 writeRaster(ref_ras, filename = './Maps/Ref/ref_ras.tif') 
+
+# -------------------------------------------------------------------------------------------------------------- #
+# Download country boundaries
+CountryShape <- getData('GADM', country = Country, level=1, path = './data/Boundaries')
+coordsys <- CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0")
+spTransform(CountryShape, coordsys)
+
+# VCF
+# Set parameters VCF
+dataFolder <- './data/VCF/'
+Year <- 2005
+CountryShape <- CountryShape
+
+# Downloading VCF data
+VCF(dataFolder, Year, CountryShape = CountryShape, mosaic = F) # Mosaic will take a long time using R
+# Best to load the downloaded data in Arcmap and transform/mosaic from there
+
+
 

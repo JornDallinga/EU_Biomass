@@ -7,7 +7,7 @@ if (!require(robust)) install.packages('robust')
 ######  INPUT DATA  ##########
 
 #Gal <- raster(paste('./Input_Maps/Gal_1km_', cont, '.tif', sep=""))
-Gal <- raster("./Maps/Gallaun/1km/bmAGB_Gallaun_crop.tif")
+Gal <- raster("./Maps/Barredo/barredo_crop.tif")
 IIASA <- raster("./Maps/IIASA/1km/bmAg_IIASA2010_crop.tif")
 Thur <- raster('./Maps/Thurner/1km/bmAg_Thurner_1km_crop.tif')  
 
@@ -33,6 +33,7 @@ Thur[water == 2] <- NA
 IIASA[water == 2] <- NA
 rm(water)
 
+c <- resample(x = Gal, Thur)
 
 ##################################################################################
 ###########################   ERROR STRATA   #####################################
@@ -108,7 +109,7 @@ Gal.er <- predict(error.dat, Gal.rf, type= 'response', filename="./Results/Strat
 Thur.er <- predict(error.dat, Thur.rf, type= 'response', filename="./Results/Strata/Thur_Error_RF.tif", datatype='INT2S', overwrite=T, progress='text')
 IIASA.er <- predict(error.dat, IIASA.rf, type= 'response', filename="./Results/Strata/IIASA_Error_RF.tif", datatype='INT2S', overwrite=T, progress='text')
 
-rm(error.map)
+#rm(error.map)
 
 err.all <- stack(Gal.er, Thur.er, IIASA.er)
 mydata <- as.data.frame(getValues(err.all))
@@ -317,7 +318,7 @@ rm(list=ls(pattern=".bias"))
 
 X <- c(1,1,1)                      ##! adapt if more than 2 input maps. with 3 maps it should be X <- c(1,1,1)
 
-# !! Wont Run becuase Gal dataset has a mean error of 0, due to the reference dataset being used in the map creation  !! 
+# !! Wont Run because Gal dataset has a mean error of 0, due to the reference dataset being used in the map creation  !! 
 cov <- vector('list',length = Strata.s)
 for (i in 1:Strata.s){
   cov[[i]] <- covRob(error[error$Strata==i,2:4]) # set length (-:-) to the selected datasets
@@ -340,3 +341,209 @@ weight[weight > 1] <- 1   # set weights to 0 - 1 limits
 
 
 #------------------------------------------------
+
+##### for EUROPE: this section until line 561 is not essential and may be skipped
+
+### calculate Error Variance of the Fused map
+
+v <- vector('list', length = Strata.s)
+for (i in 1:Strata.s){  v[[i]] <- solve(t(X) %*% solve(cov[[i]]) %*% X) }
+
+v.err <- matrix(1:Strata.s)
+for (i in 1:Strata.s){ v.err[i] <- v[[i]] }
+
+colnames(v.err) <- c("Fus_Var")
+rownames(v.err) <- c(1:Strata.s)
+rm(list=c('cov', 'i', 'v', 'w', 'X'))
+
+
+### Compute Error Variance of Input maps
+
+Gal.var <- aggregate(error$Gal_er, by = list(error$Strata), FUN="var")
+Thur.var <- aggregate(error$Thur_er, by = list(error$Strata), FUN="var")
+IIASA.var <- aggregate(error$IIASA_er, by = list(error$Strata), FUN="var")
+
+### Compute n. pixel per strata
+
+n.pix <- matrix(1:Strata.s)
+for (i in 1:Strata.s) { n.pix[i] <- freq(Strata, useNA='no', value = i) }
+n.pix.w <- n.pix / (sum(n.pix))
+
+
+### Compile Error Variances
+
+err.var <- cbind(Gal.var, Thur.var[,2], IIASA.var[,2], v.err, n.pix, n.pix.w)
+colnames(err.var) <- c("Strata", "Gal.var", "Thur.var","IIASA.var","Fus_Var", "N_Pix", "N_Pix_w")
+err.var$Gal_Var_w <- err.var$Gal.var * err.var$N_Pix_w
+err.var$Thur_Var_w <- err.var$Thur.var * err.var$N_Pix_w
+err.var$IIASA_Var_w <- err.var$IIASA.var * err.var$N_Pix_w
+err.var$Fus_Var_w <- err.var$Fus_Var * err.var$N_Pix_w
+
+
+# Compile Bias, Weights, Error variance, and add Strata 9
+
+fus.par <- aggregate(error$Strata, by = list(error$Strata), FUN="length")
+colnames(fus.par) <- c("Strata", "N")
+fus.par$Strata <- as.numeric(as.character(fus.par$Strata))
+fus.par <- cbind(fus.par, bias, weight, err.var[,-1])   # adjust the number of classes
+#fus.par[9,] <- c(9, 0, 0, 0, 0.5, 0.5, rep(0,8))
+fus.par[nrow(Strata.s)+1,] <- c(nrow(Strata.s)+1, 0, 0, 0, 0, 0.5, 0.5, 0.5, rep(0,10)) 
+# Should weights be set according to the number of input maps? e.g. 3 maps == weight 0.33? check this
+bias <- fus.par[,3:5]                             # Add Strata 9 to bias and weight (for Fusion)
+weight <- fus.par[,6:8]
+dir.create("./Results/Fused_Map", showWarnings = F)
+write.csv(fus.par, paste("./Results/Fused_Map/Bias_Weights_", Strata.fn, ".csv", sep=""), row.names = FALSE)
+
+
+## Map Uncertainty (Standard deviation of Error of Fused map)
+
+err.rcl <- cbind(fus.par$Strata[1:Strata.s], sqrt(fus.par$Fus_Var[1:Strata.s]))
+uncer <- reclassify(Strata, err.rcl, filename=paste("./Results/Fused_Map/Uncertainty_", Strata.fn, ".tif", sep=""), datatype='FLT4S', overwrite=T)
+
+rm(list=c('fus.par', 'i', 'n.pix', 'n.pix.w', 'uncer'))
+rm(list=ls(pattern="err"))
+rm(list=ls(pattern=".var"))
+
+
+
+####### MAP FUSION  
+
+## Set NA in Strata to a value 9 (Strata must have always values in Fusion, no NA)
+
+Strata.n <- Strata.s + 1
+Strata[is.na(Strata)] <- Strata.n  
+
+#### FOR EUROPE: this function needs to be adapted to 3 maps instead of 2. After Line 593 there should be a "c <-..." and the map "c" should be added to line 594 with respective bias and weight 
+###  FUSION                          
+# Double check, if 3 maps are used and 1 of them contains NA, the outcome will be NA. Adjusted to ignore NA?
+maps <- stack(Gal, Thur, IIASA, Strata)
+
+biomass.fusion <- function(x) {
+  result <- matrix(NA, dim(x)[1], 1)
+  for (n in 1:Strata.n) {
+    ok <- !is.na(x[,4]) &  x[,4] == n     # identify pixels belonging to a Stratum, without NA (logical: FALSE/TRUE vector for ALL pixels)
+    a <- x[ok,1] + bias[n,1]              # for these pixels, take the values of map 1 and add the bias (output is a subset with only values for this Stratum)
+    b <- x[ok,2] + bias[n,2]
+    c <- x[ok,3] + bias[n,3]
+    result[ok] <- a * weight[n,1] + b * weight[n,2] + c * weight[n,3]  # compute fused biomass for the pixels belonging to this Stratum
+  }
+  return(result)
+} 
+
+Fused.map <- calc(maps, fun = biomass.fusion)
+Fused.map[Fused.map < 0] <- 0
+
+#### for EUROPE: this section until line 690 aims to fill the NA in the fused map. the NA are due to a input biomass map with NA.
+## another fused map is created using only the biomass map(s) with values, and then this additional map is mosaicked to the original fused map (of line 600)
+## the lines 630-680 are aimed to blend the transition area to avoid artefacts: for Europe probably not appropriate and can be skipped - just merge the results
+######## EXTEND TO SAATCHI AREA
+
+
+
+### Create a SAATCHI BIAS-ADJ map (Full coverage)
+
+maps <- stack(Gal, Thur,IIASA, Strata)
+
+# Should bias in the adj function be the mean of the input maps? since it will only take the values and bias from 1 map. Test below 
+#old
+adj <- function(x) {
+  result <- matrix(NA, dim(x)[1], 1)
+  for (n in 1:Strata.n) {
+    ok <- !is.na(x[,4]) &  x[,4] == n        # identify pixels belonging to a Stratum, without NA (logical: FALSE/TRUE vector for ALL pixels)
+    result[ok] <- x[ok,1] + bias[n,1]        # for these pixels, take the values of map 1 and add the bias (output is a subset with only values for this Stratum)
+  }
+  return(result)
+} 
+# new testing, may contain errors!!
+adj <- function(x) {
+  result <- matrix(NA, dim(x)[1], 1)
+  result1 <- matrix(NA, dim(x)[1], 1)
+  for (n in 1:Strata.n) {
+    ok <- !is.na(x[,4]) &  x[,4] == n        # identify pixels belonging to a Stratum, without NA (logical: FALSE/TRUE vector for ALL pixels)
+    result <- x[ok,1] + bias[n,1]        # for these pixels, take the values of map 1 and add the bias (output is a subset with only values for this Stratum)
+    result[2] <- x[ok,2] + bias[n,2] 
+    result[3] <- x[ok,3] + bias[n,3] 
+    result1[ok] <- mean(result, na.rm = T)
+      }
+  return(result1)
+} 
+
+Gal.bias.adj <- calc(maps, fun = adj)
+Thur.bias.adj <- calc(maps1, fun = adj)
+
+saa.bias.adj[saa.bias.adj < 0] <- 0
+writeRaster(saa.bias.adj, filename = paste("Results/Fused_Map/Mosaic/Saa_Bias_Adj_", Strata.fn, ".tif", sep=""), datatype='FLT4S', overwrite=T)
+
+
+### FULL COVERAGE: MOSAIC the Baccini extent with the larger Saatchi extent 
+
+overlap <- 1   # Define overlap area, in degree
+
+## Input data
+# Fused.map <- raster(paste("./Results/Fused_Map/Mosaic/Fused_map_", Strata.fn, ".tif", sep=""))
+# saa.bias.adj <- raster(paste("./Results/Fused_Map/Mosaic/Saa_Bias_Adj_", Strata.fn, ".tif", sep=""))
+
+
+### Define Extents
+
+## Baccini Extent
+bac.ext <- read.csv('/media/DATA1/avita001/Baccini_extents.csv')
+# bac.ext <- read.csv("G:/GEOCARBON/workspace/Fusion/Baccini_extents.csv")
+
+map1.ext <- extent(bac)
+if (cont=="AFR") { 
+  map1.ext@ymin <- bac.ext[1,3] }
+if (cont=='SAM') {
+  map1.ext@ymin <- bac.ext[2,3] }
+if (cont=='CAM') {
+  map1.ext@ymax <- bac.ext[3,2] }
+if (cont=='ASIA') {
+  map1.ext@ymax <- bac.ext[4,2] }
+
+
+## Missing Extent (Saatchi - Baccini) + Overlap
+
+map2.ext <- extent(saa)
+if (extent(saa)@ymin != map1.ext@ymin && map1.ext@ymin < 0) map2.ext@ymax <- map1.ext@ymin + overlap  # for AFR & SAM
+if (extent(saa)@ymin != map1.ext@ymin && map1.ext@ymin > 0) map2.ext@ymax <- map1.ext@ymin - overlap
+if (extent(saa)@ymax != map1.ext@ymax && map1.ext@ymax < 0) map2.ext@ymin <- map1.ext@ymax + overlap
+if (extent(saa)@ymax != map1.ext@ymax && map1.ext@ymax > 0) map2.ext@ymin <- map1.ext@ymax - overlap  # for CAM & ASIA
+
+
+#### Blend mosaic of Saatchi-bias.adj and Fused maps
+## Compute distances and weights in the overlap area
+## map1 is avg or Fused.map with smaller extent (baccini extent), map2 is saa or saa.bias.adj with larger extent (saatchi extent)
+
+blend.f <- function(map1, map2, map.fn) {     
+  over.ext <- intersect(map1.ext, map2.ext)                       ## overlap extent (bac.ext is fixed, saa.ext depends on the continent)
+  overl <- crop(map1, over.ext)                                   ## overlap as raster
+  overl[] <- 0                                                    ## overlap values = 0 (NA using the R 'distance' function)
+  overl <- extend(overl, c(100, 0), value=1)                      ## extend to compute distance of overlap area (extend is both towards North and South)
+  overl <- crop(overl, map2.ext)                                  ## remove the extended part (North or South) not necessary
+  writeRaster(overl, filename='./temp/Overlap.tif', overwrite=T)  ## compute distance in GDAL
+  in.fn <- paste(getwd(),'/temp/Overlap.tif', sep="")
+  out.fn <- paste(getwd(),'/temp/Overlap_dist.tif', sep="")
+  dist.py <- paste("gdal_proximity.py ", in.fn, " ", out.fn, " -ot Float32 -distunits GEO", sep="")
+  system(dist.py)
+  wei.over <- raster(out.fn)
+  map1 <- crop(map1, map1.ext) 
+  map2 <- crop(map2, map2.ext)
+  wei.over <- calc(wei.over, fun = function(x) {x / overlap})             ## Compute weights from distances (overlap = maximum distance)
+  wei.over <- crop(wei.over, over.ext, filename='./temp/Weights_mosaic.tif', overwrite=T)  ## remove the extended part (North or South) not necessary
+  map1.over <- crop(map1, over.ext)
+  map2.over <- crop(map2, over.ext)
+  agb.over <- (map1.over * wei.over) + (map2.over * (1 - wei.over))
+  map.blend <- merge(agb.over, map1, map2, filename=paste('Results/', map.fn, Strata.fn, '.tif', sep=''), datatype='FLT4S', overwrite=T)
+  return(map.blend)
+}
+
+Fused.final <- blend.f(map1 = Fused.map, map2 = saa.bias.adj, map.fn = 'FUSED_FINAL_')
+
+rm(list=ls(pattern="fus."))
+rm(list=ls(pattern="saa."))
+rm(list=ls(pattern="bac."))
+rm(list=ls(pattern="dist"))
+rm(list=ls(pattern="map"))
+rm(list=c('blend.f', 'overlap'))
+Sys.time()
+
