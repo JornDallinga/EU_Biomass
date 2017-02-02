@@ -10,6 +10,8 @@ if (!require(MODIS)) install.packages("MODIS", repos="http://R-Forge.R-project.o
 if (!require(RCurl)) install.packages('RCurl')
 devtools::install_github('JornDallinga/VCF')
 if (!require(VCF)) install.packages('VCF')
+if (!require(plotKML)) install.packages('plotKML')
+if (!require(gdalUtils)) install.packages('gdalUtils')
 
 # load functions
 source("R/hansen.R")
