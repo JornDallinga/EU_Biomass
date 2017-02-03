@@ -7,7 +7,7 @@ VCF <- function(dataFolder, Year, CountryShape, mosaic = F){
   dir <- dataFolder #"data/" # If doesnt work add "./"
   extract <- 'extract_sexton/'
   dir.create(paste0(dir,'extract_sexton'), showWarnings = F) 
-  
+
   # check for Path/Row existance
   if (is.list(pr_copy)) { # Assuming the list provided is the variable returned by getPR() function
     pr_copy <- pr_copy$PR
@@ -17,6 +17,7 @@ VCF <- function(dataFolder, Year, CountryShape, mosaic = F){
   
   p <- substr(pr_copy,1,3)
   r <- substr(pr_copy,4,6)
+  
   
   ## checking for patch/row existance
   start_list <- list()
@@ -29,16 +30,17 @@ VCF <- function(dataFolder, Year, CountryShape, mosaic = F){
     start_list[t] <- Check
     t <- t + 1
   }
-  
-  
-  if ('FALSE' %in% start_list){
-    return_list <- 'NA'
-    print("Missing Path/Rows within selected buffer")
-    
-    return(return_list)
-    
+
+  if (!('TRUE' %in% start_list)){
+      return_list <- 'NA'
+      print("Missing Path/Rows within selected buffer")
+      return(return_list)
+
   } else {
-    
+    pr$map <- subset(pr$map, start_list != F)
+    pr$PR <- subset(pr$PR, start_list != F)
+    pr$PATH <- subset(pr$PATH, start_list != F)
+    pr$ROW <- subset(pr$ROW, start_list != F)
     # Download data
     
     downloadPR(pr = pr, Year, paste0(dir, 'download'), log = NULL,
@@ -58,6 +60,7 @@ VCF <- function(dataFolder, Year, CountryShape, mosaic = F){
     x <- listing_files(list_file, pr_filename)
     
     # Unpack VCF data
+    print("Unpacking downloaded files")
     Unpack_VCF(pr_filename, x, extract, Year, pr, dir)
     
     # list raster files
@@ -71,42 +74,6 @@ VCF <- function(dataFolder, Year, CountryShape, mosaic = F){
       return(x_list)
     }
 
-    # # Creating figure information
-    # 
-    # Figure_output <- Masked_Raster
-    # 
-    # Figure_output[Figure_output < Threshold] <- 1
-    # Figure_output[Figure_output >= Threshold & Figure_output <= 100] <- 2
-    # Figure_output[Figure_output == 200] <- 3
-    # Figure_output[Figure_output == 210 | Figure_output == 211 | Figure_output == 220] <- 4
-    # 
-    # names(Figure_output) <- "sexton"
-    # 
-    # # retrieve water
-    # Water <- freq(Masked_Raster, digits= 0, value = 200, useNA = no)
-    # listvalues <- values(Masked_Raster)
-    # countcells <- count(listvalues)
-    # countcells <- countcells[!is.na(countcells$x),]
-    # total_cells <- sum(countcells$freq)
-    # ## percentage water
-    # Water_perc <- (Water / total_cells) * 100
-    # 
-    # # retrieve clouds
-    # Clouds <- freq(Masked_Raster, digits= 0, value = 210 | 211, useNA = no)
-    # listvalues <- values(Masked_Raster)
-    # countcells <- count(listvalues)
-    # countcells <- countcells[!is.na(countcells$x),]
-    # total_cells <- sum(countcells$freq)
-    # ## percentage water
-    # Clouds_perc <- (Clouds / total_cells) * 100
-    # 
-    # 
-    # # Set values and a value replacement function
-    # Masked_Raster[Masked_Raster < Threshold] <- 0
-    # Masked_Raster[Masked_Raster >= Threshold & Masked_Raster <= 100] <- 1
-    # Masked_Raster[Masked_Raster > 100] <- NA
-    # 
-    # 
     names(Masked_Raster) <- "Sexton"
     
     return_r <- Masked_Raster

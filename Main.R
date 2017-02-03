@@ -8,7 +8,7 @@ if (!require(SDMTools)) install.packages('SDMTools')
 if (!require(devtools)) install.packages("devtools")
 if (!require(MODIS)) install.packages("MODIS", repos="http://R-Forge.R-project.org")
 if (!require(RCurl)) install.packages('RCurl')
-devtools::install_github('JornDallinga/VCF')
+#devtools::install_github('JornDallinga/VCF')
 if (!require(VCF)) install.packages('VCF')
 if (!require(plotKML)) install.packages('plotKML')
 if (!require(gdalUtils)) install.packages('gdalUtils')
@@ -23,12 +23,13 @@ source("R/Mosaic_Raster.R")
 
 
 # Read biomass points
-shape <- readOGR(dsn = "./Ref_datasets/Netherlands", layer = "Netherlands_NFI")
+shape <- readOGR(dsn = "./Ref_datasets/", layer = "Netherlands_NFI")
 # Transform coordinate system
 BufferWGS <- spTransform(shape, CRS("+proj=longlat +datum=WGS84"))
 # country of analysis
 ccodes()
 Country <- 'NLD' # Netherlands
+Country <- 'DEU'
 
 # Read Raster
 getwd()
@@ -166,7 +167,7 @@ writeRaster(ref_ras, filename = './Maps/Ref/ref_ras.tif')
 
 # -------------------------------------------------------------------------------------------------------------- #
 # Download country boundaries
-CountryShape <- getData('GADM', country = Country, level=1, path = './data/Boundaries')
+CountryShape <- getData('GADM', country = Country, level=0, path = './data/Boundaries')
 coordsys <- CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0")
 spTransform(CountryShape, coordsys)
 

@@ -31,7 +31,7 @@ water <- raster("./Covariates/CCI_Water/Water_NL_Crop.tif") # AGGREGATE FIRST
 Gal[water == 2] <- NA
 Thur[water == 2] <- NA
 IIASA[water == 2] <- NA
-rm(water)
+#rm(water)
 
 #c <- resample(x = Gal, Thur)
 
@@ -417,19 +417,53 @@ Strata[is.na(Strata)] <- Strata.n
 ###  FUSION                          
 # Double check, if 3 maps are used and 1 of them contains NA, the outcome will be NA. Adjusted to ignore NA?
 maps <- stack(Gal, Thur, IIASA, Strata)
+# Function broken, still needs fixing.
+biomass.fusion <- function(x) {
+  result <- matrix(NA, dim(x)[1], 1)
+  for (n in 1:Strata.n) {
+    
+    ok <- !is.na(x[,4]) &  x[,4] == n & !all(is.na(x[,1:length(x)-1]) == T)    # identify pixels belonging to a Stratum, without NA (logical: FALSE/TRUE vector for ALL pixels)
+    
+    if (ok == F | all(is.na(x[,1:length(x)-1]) == T)){
+      
+    } else {
+      d <- matrix(NA, dim(x), length(x)-1) # create matrix for x amount of maps
+      
+      for (l in 1:(length(x)-1)){
+        d[l] <- x[,l] + bias[n,l] # add bias to non NA maps
+      }
+      
+      d <- d[!is.na(d)]
+        
+      # -- recalculate weights --
+      w <- subset(weight[1:(length(x)-1)],select = !is.na(x[1:(length(x)-1)])) # subset map weights that do not have NA
+      p <- sum(w[n,]) # calculate sum of map values
+      pp <- (w[n,])/p # divide map values by sum to get the proportion to == 100
+      pp <- as.numeric(pp)
+        
+      # weight * bias
+        
+      tot_mat <- d * pp
+      result <- as.matrix(as.integer(round(sum(tot_mat))))
+
+    }
+  }
+  return(result)
+} 
 
 biomass.fusion <- function(x) {
   result <- matrix(NA, dim(x)[1], 1)
   for (n in 1:Strata.n) {
-    ok <- !is.na(x[,4]) &  x[,4] == n     # identify pixels belonging to a Stratum, without NA (logical: FALSE/TRUE vector for ALL pixels)
+    ok <- !is.na(x[,4]) &  x[,4] == n 
     a <- x[ok,1] + bias[n,1]              # for these pixels, take the values of map 1 and add the bias (output is a subset with only values for this Stratum)
     b <- x[ok,2] + bias[n,2]
     c <- x[ok,3] + bias[n,3]
     result[ok] <- a * weight[n,1] + b * weight[n,2] + c * weight[n,3]  # compute fused biomass for the pixels belonging to this Stratum
   }
-  return(result)
-} 
+  return(result)   
+}
 
+# x[1846]
 Fused.map <- calc(maps, fun = biomass.fusion)
 Fused.map[Fused.map < 0] <- 0
 
