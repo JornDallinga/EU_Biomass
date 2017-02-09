@@ -8,7 +8,7 @@ if (!require(SDMTools)) install.packages('SDMTools')
 if (!require(devtools)) install.packages("devtools")
 if (!require(MODIS)) install.packages("MODIS", repos="http://R-Forge.R-project.org")
 if (!require(RCurl)) install.packages('RCurl')
-#devtools::install_github('JornDallinga/VCF')
+#devtools::install_github('JornDallinga/VCF') # install this package atleast once, after that you wont have to run it everytime
 if (!require(VCF)) install.packages('VCF')
 if (!require(plotKML)) install.packages('plotKML')
 if (!require(gdalUtils)) install.packages('gdalUtils')
@@ -167,6 +167,7 @@ writeRaster(ref_ras, filename = './Maps/Ref/ref_ras.tif')
 
 # -------------------------------------------------------------------------------------------------------------- #
 # Download country boundaries
+Country <- 'DEU' # run ccodes() to check for country codes
 CountryShape <- getData('GADM', country = Country, level=0, path = './data/Boundaries')
 coordsys <- CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0")
 spTransform(CountryShape, coordsys)
@@ -181,5 +182,64 @@ CountryShape <- CountryShape
 VCF(dataFolder, Year, CountryShape = CountryShape, mosaic = F) # Mosaic will take a long time using R
 # Best to load the downloaded data in Arcmap and transform/mosaic from there
 
+# Reprojection
+library(plotKML)
+library(gdalUtils)
+
+# Reproject all the VCF files selected in your list
+ls <- list.files("./data/VCF/extract_sexton/", pattern = ".tif", full.names = T)
+ls2 <- list.files("./data/VCF/extract_sexton/", pattern = ".tif", full.names = F)
+dir.create('./Covariates/Landsat_VCF_2005/transformed', showWarnings = F)
+# Reprojection loop
+# use gdalwarp from the gdalUtils package (significantly faster than the projectRaster::Raster package)
+for (i in 1:length(ls)){
+  lr <- raster(ls[i])
+  VCF_WGS <- reproject(lr, CRS = '+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0', program = 'GDAL', method = 'near')
+  writeRaster(VCF_WGS, filename = paste0('./Covariates/Landsat_VCF_2005/transformed/', 'WGS_',ls2[i]))
+}
+
+
+# Testing MODIS VCF download
+dirs <- "ftp://ftp.glcf.umd.edu/glcf/Global_VCF/Collection_5/2005/"
+
+fls <- character()
+library(RCurl)
+getContent <- function(dirs) {
+  urls <- paste(dirs, "/", sep="")
+  fls <- strsplit(getURL(urls, dirlistonly=TRUE), "\r?\n")
+  ok <- sapply(fls, length) > 0
+  unlist(mapply(paste, urls[ok], fls[ok], sep="", SIMPLIFY=FALSE),
+         use.names=FALSE)
+}
+
+while (length(dirs)) {
+  message(length(dirs))
+  urls <- getContent(dirs)
+  isgz <- grepl("gz$", urls)
+  fls <- append(fls, urls[isgz])
+  dirs <- urls[!isgz]
+}
+
+urls <- getContent(dirs)
+isgz <- grepl("gz$", urls)
+fls <- append(fls, urls[isgz])
+
+# Download and unpack MODIS VCF.
+# Downloads ALL the tiles. no documentation found on tile numbers for the VCF product.
+dir.create("./Covariates/MODIS_VCF_2005", showWarnings = F)
+url_ls <- fls
+
+for (i in 1:length(fls)){
+  url_s <- url_ls[i]
+  downloadname <- strsplit(url_s, "/")
+  downloadname <- unlist(downloadname)
+  downloadname <- downloadname[length(downloadname)]
+  file_name <- paste0("D:/R_Projects/EU_Biomass/Covariates/MODIS_VCF_2005/", downloadname)
+  file_name2 <- substr(file_name, 1, nchar(file_name)-3)
+  if (!file.exists(file_name2)){
+    download.file(url = url_s, destfile = file_name)
+    R.utils::gunzip(filename=file_name, remove=T, overwrite = F)
+  }
+}
 
 
