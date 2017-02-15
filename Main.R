@@ -168,6 +168,8 @@ writeRaster(ref_ras, filename = './Maps/Ref/ref_ras.tif')
 # -------------------------------------------------------------------------------------------------------------- #
 # Download country boundaries
 Country <- 'DEU' # run ccodes() to check for country codes
+dir.create("./data/")
+dir.create("./data/Boundaries")
 CountryShape <- getData('GADM', country = Country, level=0, path = './data/Boundaries')
 coordsys <- CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0")
 spTransform(CountryShape, coordsys)
@@ -183,7 +185,7 @@ VCF(dataFolder, Year, CountryShape = CountryShape, mosaic = F) # Mosaic will tak
 # Best to load the downloaded data in Arcmap and transform/mosaic from there
 
 # Reprojection
-library(plotKML)
+#library(plotKML)
 library(gdalUtils)
 
 # Reproject all the VCF files selected in your list
@@ -200,7 +202,7 @@ for (i in 1:length(ls)){
 
 
 # Testing MODIS VCF download
-dirs <- "ftp://ftp.glcf.umd.edu/glcf/Global_VCF/Collection_5/2005/"
+dirs <- "ftp://ftp.glcf.umd.edu/glcf/Global_VCF/Collection_5/2005"
 
 fls <- character()
 library(RCurl)
@@ -227,6 +229,7 @@ fls <- append(fls, urls[isgz])
 # Download and unpack MODIS VCF.
 # Downloads ALL the tiles. no documentation found on tile numbers for the VCF product.
 dir.create("./Covariates/MODIS_VCF_2005", showWarnings = F)
+dir.create("./Covariates/", showWarnings = F)
 url_ls <- fls
 
 for (i in 1:length(fls)){
@@ -241,5 +244,27 @@ for (i in 1:length(fls)){
     R.utils::gunzip(filename=file_name, remove=T, overwrite = F)
   }
 }
+
+dir.create('./Covariates/MODIS_VCF_2005/transformed/', showWarnings = F)
+dir.create('./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS/', showWarnings = F)
+
+ls_files <- list.files("./Covariates/MODIS_VCF_2005/MODIS/", pattern = '\\.tif$', recursive = T,full.names = T)
+ls2 <- list.files("./Covariates/MODIS_VCF_2005/MODIS/", pattern = "\\.tif$", full.names = F, recursive = T)
+ls2 <- sub('.*/', '', ls2)
+# use gdalwarp from the gdalUtils package (significantly faster than the projectRaster::Raster package)
+for (i in 1:length(ls_files)){
+  filename_M <- paste0('./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS/', 'WGS_',ls2[i])
+  if (!file.exists(filename_M)){
+    lr <- raster(ls_files[i])
+    VCF_WGS <- reproject(lr, CRS = '+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0', program = 'GDAL', method = 'near', overwrite= F)
+    writeRaster(VCF_WGS, filename = paste0('./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS/', 'WGS_',ls2[i]), overwrite = F)
+  }
+}
+
+ls3 <- list.files("./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS/", pattern = "\\.tif$", full.names = T, recursive = T)
+mosaic_rasters(gdalfile = ls3, dst_dataset = "./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS/Mosaic.tif", ot = "Int16", overwrite = T)
+
+t <- raster("./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS/Mosaic.tif")
+??gdalUtils
 
 
