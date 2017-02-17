@@ -200,9 +200,16 @@ for (i in 1:length(ls)){
   writeRaster(VCF_WGS, filename = paste0('./Covariates/Landsat_VCF_2005/transformed/', 'WGS_',ls2[i]))
 }
 
+#####################################################################################################
+#####################################################################################################
+#####################################################################################################
+
+# Broken, does not work properly
 
 # Testing MODIS VCF download
+# download manually for now, use url below
 dirs <- "ftp://ftp.glcf.umd.edu/glcf/Global_VCF/Collection_5/2005"
+
 
 fls <- character()
 library(RCurl)
@@ -245,6 +252,13 @@ for (i in 1:length(fls)){
   }
 }
 
+#####################################################################################################
+#####################################################################################################
+#####################################################################################################
+
+
+### Reprojecting MODIS (UTM) to MODIS (WGS-84)
+
 dir.create('./Covariates/MODIS_VCF_2005/transformed/', showWarnings = F)
 dir.create('./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS/', showWarnings = F)
 
@@ -255,16 +269,71 @@ ls2 <- sub('.*/', '', ls2)
 for (i in 1:length(ls_files)){
   filename_M <- paste0('./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS/', 'WGS_',ls2[i])
   if (!file.exists(filename_M)){
+    print('starting reprojection')
     lr <- raster(ls_files[i])
     VCF_WGS <- reproject(lr, CRS = '+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0', program = 'GDAL', method = 'near', overwrite= F)
     writeRaster(VCF_WGS, filename = paste0('./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS/', 'WGS_',ls2[i]), overwrite = F)
+  } else {
+    print('file exists')
   }
 }
 
-ls3 <- list.files("./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS/", pattern = "\\.tif$", full.names = T, recursive = T)
-mosaic_rasters(gdalfile = ls3, dst_dataset = "./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS/Mosaic.tif", ot = "Int16", overwrite = T)
+### Resampling
+ls_files <- list.files("./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS/", pattern = '\\.tif$', recursive = T,full.names = T)
+ls2 <- list.files("./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS/", pattern = "\\.tif$", full.names = F, recursive = T)
+ls2 <- sub('.*/', '', ls2)
 
-t <- raster("./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS/Mosaic.tif")
-??gdalUtils
+# Set resolution
+Gal <- raster("./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif")
+xsize <- res(Gal)[1]
+ysize <- res(Gal)[2]
+
+# Use Gdal library (python)
+dir.create('./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS_resampled/', showWarnings = F)
+# use gdal_translate to resample using the method 'mode' in R
+for (i in 1:length(ls_files)){
+  filename_S <- paste0('./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS_resampled/', 'resample_',ls2[i])
+  if (!file.exists(filename_S)){
+    gdal_translate(src_dataset = ls_files[i], ot = "Int16" ,dst_dataset = paste0('./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS_resampled/', 'resample_',ls2[i]),tr = c(xsize,ysize), r = "mode")
+  }
+}
 
 
+# Reclassify MODIS 
+dir.create('./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS_resampled_Reclassified/', showWarnings = F)
+
+ls_files <- list.files("./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS_resampled/", pattern = '\\.tif$', recursive = T,full.names = T)
+ls2 <- list.files("./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS_resampled/", pattern = "\\.tif$", full.names = F, recursive = T)
+ls2 <- sub('.*/', '', ls2)
+
+# Reclassifying cells
+for (i in 1:length(ls_files)){
+  filename_S <- paste0('./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS_resampled_Reclassified/', 'reclass_',ls2[i])
+  if (!file.exists(filename_S)){
+    lr <- raster(ls_files[i])
+    lr[lr > 100] <- NA # remove water and other thematics from the MODIS data
+    writeRaster(lr, filename = paste0('./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS_resampled_Reclassified/', 'reclass_',ls2[i]), overwrite = F)
+  }
+}
+
+
+### Mosaic using Gdal
+# Mosaic all reprojected and resampled raster tiles
+dir.create('./Covariates/MODIS_VCF_2005/transformed/Mosaic/', showWarnings = F)
+ls_files_m <- list.files("./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS_resampled_Reclassified/", pattern = '\\.tif$', recursive = T,full.names = T)
+mosaic_rasters(gdalfile = ls_files_m, dst_dataset = "./Covariates/MODIS_VCF_2005/transformed/Mosaic/Mosaic.tif", overwrite = T, ot = "Int16")
+
+### plotting
+t <- raster("./Covariates/MODIS_VCF_2005/transformed/Mosaic/Mosaic.tif")
+t
+plot(t)
+
+### cropping
+t <- raster("./Covariates/MODIS_VCF_2005/transformed/Mosaic/Mosaic.tif")
+crop(t,Gal, filename = "./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic.tif", overwrite = T)
+
+
+### plotting
+
+t <- raster("./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic.tif")
+plot(t)

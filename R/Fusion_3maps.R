@@ -14,7 +14,8 @@ Thur <- raster('./Maps/Thurner/1km/bmAg_Thurner_1km_crop.tif')
 #ref <- raster(paste('./Reference/Ref_', cont, '.tif', sep=""))
 ref <- raster('./Maps/Ref/ref_ras.tif')
 
-vcf <- raster("./Covariates/Landsat_VCF_2005/VCF_crop.tif")
+vcf <- raster("./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic.tif")
+vcf <- crop(vcf, Gal)
 #vcf <- raster(paste('./Strata/VCF_', cont, '.tif', sep=""))
 
 #hei <- raster(paste('./Strata/HEI_', cont, '.tif', sep=""))
@@ -203,16 +204,16 @@ Strata.s <- 3
 Strata.names <- 1:Strata.s
 
 ## Each NFI has a unique code, and there is a raster map where each plot of the NFI has the code value (e.g.: all plots in Spain have value 1, in France is 2, etc.)
-codes <- raster(paste('./Reference/Ref_code_', cont, '.tif', sep=""))
-code.names <- as.character(read.csv(paste("./Reference/Codes_CAM.csv", sep=""))[,2])
+codes <- raster(paste('./Reference/Ref_code_EU.tif', sep=""))
+code.names <- as.character(read.csv(paste("./Reference/Codes_EU.csv", sep=""))[,2])
 code.n <- maxValue(codes)
 
-code.names <- 'NL'
+#code.names <- 'NL' Single map testing
 
 # temp fix for testing
-codes <- Gal
-codes[codes] <- 1
-codes[codes == 0] <- NA
+#codes <- Gal
+#codes[codes] <- 1
+#codes[codes == 0] <- NA
 
 ## mask out Ref data in Water (NA in Strata)
 
