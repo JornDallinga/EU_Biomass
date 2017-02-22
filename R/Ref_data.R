@@ -253,3 +253,4 @@ ref_data <- crop(df_final, ref_pol)
 # instead of keep working with spatialpointsdataframes
 ref_ras <- rasterize(ref_data, ras, ref_data$bmAg_JR2000_ll_1km_eur_Crop, fun=mean) 
 writeRaster(ref_ras, filename = './Maps/Ref/ref_ras.tif') 
+s
