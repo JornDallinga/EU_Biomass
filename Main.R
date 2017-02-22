@@ -119,8 +119,53 @@ Year <- 2000
 
 # downloading tree cover data from Hansen (Global Forest Watch)
 # can take some time!!
-H <- Hansen(input, Threshold, Year, download_loc, output)
+# skip for large datasets, see Ref_data.R
+Hansen(input, Threshold, Year, download_loc, output)
 
+
+# lets test a method that select plots per tile
+list_f <- list.files("./data/Hansen_download/", pattern = "treecover2000", full.names = T, recursive = T)
+
+#------------------------------------------------------------------------------------------------------
+#-------- Applies threshold and SDM function for plots that intersect with a tile ----------
+#------------------------------------------------------------------------------------------------------
+
+df <- rastopol[0,]
+for (i in 1:length(list_f)){
+  lr <- raster(list_f[i])
+  c <- crop(rastopol, lr)
+  
+  for (b in 1:length(c)){
+    pb <- winProgressBar(title = "progress bar", min = 0,
+                         max = length(c), width = 300)
+    Sys.sleep(0.1)
+    setWinProgressBar(pb, b, title=paste(round(b/length(c)*100, 0),
+                                         "% done"))
+    
+    pol <- crop(lr,c[b,])
+    pol[pol < Threshold] <- 0 
+    pol[pol >= Threshold] <- 1
+    SDM <- SDM_function(pol)
+    
+    if (SDM$lanscape.division.index > .15 | is.na(SDM$lanscape.division.index)){
+      c$bmAg_JR2000_ll_1km_eur[b] <- NA
+    }
+    if (b == length(c))
+      close(pb)
+  }
+  cat(" | Tile ", i , " Out of ", length(list_f) , " Done ")
+  df <- rbind(df, c)
+}
+# delete features with NA values
+pol_sel <- df[!is.na(df$bmAg_JR2000_ll_1km_eur),]
+
+# safe output 
+writeOGR(pol_sel, dsn = paste0(getwd(), '/data/Output'), layer = "pol_sel_EU", driver = "ESRI Shapefile")
+
+#------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------
+
+### old
 # plot
 plot(H[[1]])
 plot(input, add = T)
@@ -337,3 +382,63 @@ crop(t,Gal, filename = "./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF
 
 t <- raster("./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic.tif")
 plot(t)
+
+
+
+#-----------------CCI---------------------------------------------------------------------
+
+cci <- raster("./ESACCI-LC-L4-LCCS-Map-300m-P5Y-2005-v1.6.1.tif/ESACCI-LC-L4-LCCS-Map-300m-P5Y-2005-v1.6.1.tif")
+ex <- extent(Gal)
+cci <- crop(cci2, Gal)
+writeRaster(cci, filename = './Covariates/CCI_2005/clip_cci_EU.tif')
+
+Gal <- raster("./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif")
+
+ls_files <- list.files('./Covariates/CCI_2005/', pattern = 'clip_cci_EU.tif', full.names = T)
+xsize <- res(Gal)[1]
+ysize <- res(Gal)[2]
+gdal_translate(src_dataset = ls_files[1], ot = "Int16" ,dst_dataset = './Covariates/CCI_2005/CCI_2005_resample.tif',tr = c(xsize,ysize), r = "mode")
+cci <- raster('./Covariates/CCI_2005/CCI_2005_resample.tif')
+
+writeRaster(cci, filename = './Covariates/CCI_2005/CCI_2005_resample_EU.tif', overwrite = F)
+
+#-----------------Water---------------------------------------------------------------------
+
+water <- raster("./Covariates/CCI_Water/ESACCI-LC-L4-WB-Map-150m-P13Y-2000-v4.0.tif")
+
+ex <- extent(Gal)
+water <- crop(water, Gal)
+writeRaster(water, filename = './Covariates/CCI_Water/CCI_Water_EU.tif', overwrite = T)
+
+Gal <- raster("./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif")
+
+ls_files <- list.files('./Covariates/CCI_Water/', pattern = 'CCI_Water_EU.tif', full.names = T)
+xsize <- res(Gal)[1]
+ysize <- res(Gal)[2]
+gdal_translate(src_dataset = ls_files[1], ot = "Int16" ,dst_dataset = './Covariates/CCI_Water/CCI_Water_resample.tif',tr = c(xsize,ysize), r = "mode")
+water <- raster('./Covariates/CCI_Water/CCI_Water_resample.tif')
+
+writeRaster(water, filename = "./Covariates/CCI_Water/CCI_Water_resample_EU.tif", overwrite = T)
+water <- raster("./Covariates/CCI_Water/CCI_Water_resample_EU.tif")
+
+#-----------------Height---------------------------------------------------------------------
+
+height <- raster("./Covariates/Height/Height_large_extent.tif")
+Gal <- raster("./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif")
+
+ex <- extent(Gal)
+height <- crop(height, Gal)
+writeRaster(height, filename = './Covariates/Height/Height_EU.tif', overwrite = T)
+
+
+
+ls_files <- list.files('./Covariates/Height/', pattern = 'Height_EU.tif', full.names = T)
+xsize <- res(Gal)[1]
+ysize <- res(Gal)[2]
+gdal_translate(src_dataset = ls_files[1], ot = "Int16" ,dst_dataset = './Covariates/Height/Height_resample.tif',tr = c(xsize,ysize), r = "mode")
+height <- raster('./Covariates/Height/Height_resample.tif')
+
+writeRaster(height, filename = "./Covariates/Height/Height_resample_EU.tif", overwrite = T)
+height <- raster("./Covariates/Height/Height_resample_EU.tif")
+
+

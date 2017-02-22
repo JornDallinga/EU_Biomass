@@ -38,6 +38,7 @@ shape5$country_ID <- 6
 
 # merge the dataframes together
 dat <- rbind(shape, shape1, shape2, shape3, shape4, shape5)
+rm(list=ls(pattern='shape'))
 
 # Create country code raster
 # -------------------------------------------------------------------------------------------------------------- #
@@ -81,11 +82,11 @@ o <- extract(ras, BufferWGS, method = 'simple', cellnumbers = T, sp = T)
 head(o)
 
 # Unique
-duplicated(o$cells)
+#duplicated(o$cells)
 
 # subset unique
 n_occur <- data.frame(table(o$cells))
-n_occur[n_occur$Freq > 1,]
+#n_occur[n_occur$Freq > 1,]
 df <- o[o$cells %in% n_occur$Var1[n_occur$Freq > 1],]
 
 
@@ -144,7 +145,7 @@ Year <- 2000
 
 # downloading tree cover data from Hansen (Global Forest Watch)
 # can take some time!! Below a faster solution
-H <- Hansen(input, Threshold, Year, download_loc, output)
+Hansen(input, Threshold, Year, download_loc, output)
 
 
 #------------------------------------------------------------------------------------------------------
@@ -158,15 +159,77 @@ list_f <- list.files("./data/Hansen_download/", pattern = "treecover2000", full.
 ls2 <- list.files("./data/Hansen_download/", pattern = "treecover2000", full.names = F, recursive = T)
 
 
-# Works, but will take quite some GB and time
-mosaic_rasters(list_f, dst_dataset = "./data/Hansen_download/mosaic.tif", overwrite = T, ot = "Int16")
+# Works, but will take quite some GB and time. Below example on how to do it by tile. Better to skip
+#mosaic_rasters(list_f, dst_dataset = "./data/Hansen_download/mosaic.tif", overwrite = T, ot = "Int16")
 
-# lets test something else
-list_f
-lr <- raster(list_f[7])
-# Work in progress
+# lets test a method that select plots per tile
+list_f <- list.files("./data/Hansen_download/", pattern = "treecover2000", full.names = T, recursive = T)
+
 #------------------------------------------------------------------------------------------------------
-# tryCatch(!is.null(crop(r,extent(rect))), error=function(e) return(FALSE)) 
+#-------- Applies threshold and SDM function for plots that intersect with a tile ----------
+#------------------------------------------------------------------------------------------------------
+
+df <- rastopol[0,]
+for (i in 1:length(list_f)){
+  lr <- raster(list_f[i])
+  c <- crop(rastopol, lr)
+  
+  for (b in 1:length(c)){
+    pb <- winProgressBar(title = "progress bar", min = 0,
+                         max = length(c), width = 300)
+    Sys.sleep(0.1)
+    setWinProgressBar(pb, b, title=paste(round(b/length(c)*100, 0),
+                                         "% done"))
+    
+    pol <- crop(lr,c[b,])
+    pol[pol < Threshold] <- 0 
+    pol[pol >= Threshold] <- 1
+    SDM <- SDM_function(pol)
+    
+    if (SDM$lanscape.division.index > .15 | is.na(SDM$lanscape.division.index)){
+      c$bmAg_JR2000_ll_1km_eur[b] <- NA
+    }
+    if (b == length(c))
+      close(pb)
+  }
+  cat(" | Tile ", i , " Out of ", length(list_f) , " Done ")
+  df <- rbind(df, c)
+}
+
+# delete features with NA values
+pol_sel <- df[!is.na(df$bmAg_JR2000_ll_1km_eur),]
+
+# safe output 
+writeOGR(pol_sel, dsn = paste0(getwd(), '/data/Output'), layer = "pol_sel_EU", driver = "ESRI Shapefile")
+
+#--- testing large scale extraction. Dimensions are lost at value extraction. looking for a fix
+# lr <- raster(list_f[1])
+# c <- crop(rastopol, lr)
+# 
+# cc <- mask(lr, c[1,])
+# 
+# ovR <- extract(lr,c)
+# output <- matrix(unlist(ovR[1]), ncol = 33)
+# 
+# ovR2 <- extract(lr,c)
+# ovR2 <- getValues(lr)
+# ovR1 <- lapply(ovR, as.numeric)
+# 
+# 
+# test <- ovR1[1]
+# matrix(unlist(test))
+# 
+# ovR[ovR[], FUN = < Threshold] <- 0 
+# lapply(ovR, 
+# c[c >= Threshold] <- 1
+# ovR[1]
+# 
+# ovR[1][ovR[1] < Threshold] <- 0
+
+#------------------------------------------------------------------------------------------------------
+#-------- Applies threshold and SDM function for a group of plots that intersect with a tile ----------
+# Might take longer that above, has to be tested
+#------------------------------------------------------------------------------------------------------
 
 for (i in 1:length(rastopol)){
   pb <- winProgressBar(title = "progress bar", min = 0,
@@ -184,73 +247,46 @@ for (i in 1:length(rastopol)){
       if (SDM$lanscape.division.index > .15 | is.na(SDM$lanscape.division.index))
         rastopol$bmAg_JR2000_ll_1km_eur[i] <- NA
     }
-  if (i == length(rastopol))
-    close(pb)
+    if (i == length(rastopol))
+      close(pb)
   }
 }
 
 
 
+#------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------
 
 
 # Reclassify
-for (i in 1:length(list_f)){
-  filename_S <- paste0('./data/Hansen_Reclass/', 'reclass_',ls2[i])
-  if (!file.exists(filename_S)){
-    lr <- raster(list_f[i])
-    lr[lr >= Threshold] <- 1 
-    lr[lr < Threshold] <- 0 
-    writeRaster(lr, filename = paste0('./data/Hansen_Reclass/', 'reclass_',ls2[i]), overwrite = F)
-  }
-}
-
-
-
-
-#------------------------------------------------------------------------------------------------------
-
-# plot
-plot(H[[1]])
-plot(input, add = T)
-
-# set features to NA if below/above a certain threshold (here landscape.division.index > .15)
-for (i in 1:length(rastopol)){
-  # create progress bar
-  pb <- winProgressBar(title = "progress bar", min = 0,
-                       max = length(rastopol), width = 300)
-  Sys.sleep(0.1)
-  setWinProgressBar(pb, i, title=paste(round(i/length(rastopol)*100, 0),
-                                       "% done"))
-  
-  c <- crop(H[[1]],rastopol[i,])
-  SDM <- SDM_function(c)
-  if (SDM$lanscape.division.index > .15)
-    rastopol$bmAg_JR2000_ll_1km_eur[i] <- NA
-  if (i == length(rastopol))
-    close(pb)
-}
-
-# delete features with NA values
-pol_sel <- rastopol[!is.na(rastopol$bmAg_JR2000_ll_1km_eur),]
-
-# safe output 
-writeOGR(pol_sel, dsn = paste0(getwd(), '/data/Output'), layer = "pol_sel_NL", driver = "ESRI Shapefile")
+# Works, but time consuming
+## Not needed anymore
+# for (i in 1:length(list_f)){
+#   filename_S <- paste0('./data/Hansen_Reclass/', 'reclass_',ls2[i])
+#   if (!file.exists(filename_S)){
+#     lr <- raster(list_f[i])
+#     lr[lr >= Threshold] <- 1 
+#     lr[lr < Threshold] <- 0 
+#     writeRaster(lr, filename = paste0('./data/Hansen_Reclass/', 'reclass_',ls2[i]), overwrite = F)
+#   }
+# }
 
 
 # -------------------------------------------------------------------------------------------------------------- #
 
 # Read biomass polygons
-ref_pol <- readOGR(dsn = "./data/Output", layer = "pol_sel_NL")
+ref_pol <- readOGR(dsn = "./data/Output", layer = "pol_sel_EU")
 
 # select intersecting points from rasterized polygons
 ref_data <- crop(df_final, ref_pol)
+#writeOGR(ref_data, dsn = paste0(getwd(), '/data'), layer = "ref_data", driver = "ESRI Shapefile")
+
+rm(ref_pol, df, df_2, df_del, df_final, df_mean, df_sel, i, lis, n_occur)
 
 # -------------------------------------------------------------------------------------------------------------- #
 
 # Rasterize points 
 # The whole upper section of this script can be simplified by running the rasterize function,
 # instead of keep working with spatialpointsdataframes
-ref_ras <- rasterize(ref_data, ras, ref_data$bmAg_JR2000_ll_1km_eur_Crop, fun=mean) 
-writeRaster(ref_ras, filename = './Maps/Ref/ref_ras.tif') 
-s
+ref_data <- readOGR(dsn = "./data", layer = "ref_data")
+rasterize(ref_data, ras, ref_data$bA_JR20, fun=mean, filename = './Maps/Ref/ref_ras_EU.tif') 
