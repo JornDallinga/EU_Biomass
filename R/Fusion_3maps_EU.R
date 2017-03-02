@@ -8,26 +8,30 @@ if (!require(robust)) install.packages('robust')
 
 #Gal <- raster(paste('./Input_Maps/Gal_1km_', cont, '.tif', sep=""))
 Gal <- raster("./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif")
-Bar <- raster("./Maps/Barredo/barredo.tif")
+Bar <- raster("./Maps/Barredo/barredo_reproj.tif")
 
 # cant get Bar en Gal extents to match, fix required
-Bar2 <- projectRaster(Bar, Gal, method = 'ngb')
+#Bar <- projectRaster(Bar, Gal, method = 'ngb')
+#writeRaster(Bar, filename = "./Maps/Barredo/barredo_reproj.tif")
 
 
 IIASA <- raster("./Maps/IIASA/1km/bmAg_IIASA2010.tif")
-Thur <- raster('./Maps/Thurner/1km/bmAg_Thurner_1km.tif')  
+IIASA <- crop(IIASA, Gal)
 
+Thur <- raster('./Maps/Thurner/1km/bmAg_Thurner_1km.tif')  
+Thur <- crop(Thur, Gal)
 #ref <- raster(paste('./Reference/Ref_', cont, '.tif', sep=""))
 ref <- raster('./Maps/Ref/ref_ras_EU.tif')
 ref <- crop(ref, Gal)
 
 vcf <- raster("./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic.tif")
-vcf <- crop(vcf, Gal)
+align_rasters("./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic.tif", "./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif", dstfile = "./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic_C.tif")
 #vcf <- raster(paste('./Strata/VCF_', cont, '.tif', sep=""))
-
+vcf <- raster("./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic_C.tif")
 #hei <- raster(paste('./Strata/HEI_', cont, '.tif', sep=""))
 hei <- raster("./Covariates/Height/Height_resample_EU.tif")
-hei 
+hei <- crop(hei, Gal)
+
 #cci <- raster(paste('./Strata/CCI_', cont, '.tif', sep=""))
 cci <- raster('./Covariates/CCI_2005/CCI_2005_resample.tif')
 
