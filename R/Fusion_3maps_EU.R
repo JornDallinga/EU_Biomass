@@ -8,13 +8,15 @@ if (!require(robust)) install.packages('robust')
 
 #Gal <- raster(paste('./Input_Maps/Gal_1km_', cont, '.tif', sep=""))
 Gal <- raster("./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif")
-Bar <- raster("./Maps/Barredo/barredo_reproj.tif")
+Gal <- raster("./Maps/Barredo/barredo_reproj.tif")
+Gal[Gal < 0] <- NA
 
 # cant get Bar en Gal extents to match, fix required
 #Bar <- projectRaster(Bar, Gal, method = 'ngb')
 #writeRaster(Bar, filename = "./Maps/Barredo/barredo_reproj.tif")
+#
 
-
+#-------
 IIASA <- raster("./Maps/IIASA/1km/bmAg_IIASA2010.tif")
 IIASA <- crop(IIASA, Gal)
 
@@ -24,21 +26,44 @@ Thur <- crop(Thur, Gal)
 ref <- raster('./Maps/Ref/ref_ras_EU.tif')
 ref <- crop(ref, Gal)
 
-vcf <- raster("./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic.tif")
-align_rasters("./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic.tif", "./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif", dstfile = "./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic_C.tif")
-#vcf <- raster(paste('./Strata/VCF_', cont, '.tif', sep=""))
-vcf <- raster("./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic_C.tif")
+#vcf <- raster("./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic.tif")
+#align_rasters("./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic.tif", "./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif", dstfile = "./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic_C.tif")
+#vcf[vcf < 0] <- NA
+#vcf[vcf > 100] <- NA
+#writeRaster(vcf, filename = "./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic_EU.tif")
+vcf <- raster("./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic_EU.tif")
+
+
 #hei <- raster(paste('./Strata/HEI_', cont, '.tif', sep=""))
 hei <- raster("./Covariates/Height/Height_resample_EU.tif")
 hei <- crop(hei, Gal)
 
 #cci <- raster(paste('./Strata/CCI_', cont, '.tif', sep=""))
-cci <- raster('./Covariates/CCI_2005/CCI_2005_resample.tif')
+#cci <- raster('./Covariates/CCI_2005/CCI_2005_resample.tif')
+#cci[cci < 0] <- NA
+#writeRaster(cci, filename = './Covariates/CCI_2005/CCI_2005_resample_EU.tif')
+cci <- raster('./Covariates/CCI_2005/CCI_2005_resample_EU.tif')
+
 
 #water <- raster(paste('./Strata/WATER/Water_1km_', cont, '.tif', sep=""))
 water <- raster("./Covariates/CCI_Water/CCI_Water_resample_EU.tif") # AGGREGATE FIRST
 
 ###### WATER MASK APPLIED TO GalTCHI & ThurCINI ############
+
+#-------
+plot(Gal)
+ex <-drawExtent()
+
+Gal <- crop(Gal,ex)
+ref <- crop(ref,ex)
+Thur <- crop(Thur,ex)
+IIASA <- crop(IIASA,ex)
+vcf <- crop(vcf,ex)
+#align_rasters(unaligned ="./Covariates/Height/Height_resample_EU.tif", reference ="./Maps/Barredo/barredo_reproj.tif", dstfile = "./Covariates/Height/Height_resample_EU_proj.tif", overwrite =T)
+hei <- raster("./Covariates/Height/Height_resample_EU_proj.tif")
+hei <- crop(hei,ex)
+cci <- crop(cci,ex)
+water <- crop(water,ex)
 
 Gal[water == 2] <- NA
 Thur[water == 2] <- NA
@@ -76,7 +101,7 @@ Thur.rf.f <- formula(Thur.er ~ hei + cci + vcf + Thur + Gal + IIASA)
 IIASA.rf.f <- formula(IIASA.er ~ hei + cci + vcf + Thur + Gal + IIASA)
 #Thur.rf.f <- formula(Thur.er ~ hei + vcf + Gal + Thur + cci)
 set.seed(55)
-Gal.rf <- randomForest(Gal.rf.f, error, importance=F, mtry=2)
+system.time(Gal.rf <- randomForest(Gal.rf.f, error, importance=F, mtry=2))
 set.seed(55)
 Thur.rf <- randomForest(Thur.rf.f, error, importance=F, mtry=2)
 set.seed(55)
@@ -190,19 +215,19 @@ strata.f <- function(x) {
   x[i,1] <- x[i,2]
   return(x[,1])
 }
-Strata.fn <- 'NL'
+Strata.fn <- 'EU'
 Strata <- calc(strata, fun=strata.f, filename=paste("./Results/Strata/Strata_", Strata.fn, ".tif", sep=""), datatype='INT1U', overwrite=T, progress='text')
 names(Strata) <- paste("Strata_", Strata.fn, sep="")
 rm(list=ls(pattern='str.'))
 
 Sys.time()
 
--------------------------
+#-------------------------
   
-  Strata <- raster('./Results/Strata/Strata_NL.tif')
+Strata <- raster(paste("./Results/Strata/Strata_", Strata.fn, ".tif", sep=""))
+Strata <- crop(Strata, ex)
 
-
--------------------------
+#-------------------------
   
   ##################################################################################
   ###########################   REFERENCE DATA  ####################################
@@ -216,7 +241,9 @@ Strata.names <- 1:Strata.s
 
 ## Each NFI has a unique code, and there is a raster map where each plot of the NFI has the code value (e.g.: all plots in Spain have value 1, in France is 2, etc.)
 codes <- raster(paste('./Reference/Ref_code_EU.tif', sep=""))
+codes <- crop(codes, Gal)
 code.names <- as.character(read.csv(paste("./Reference/Codes_EU.csv", sep=""))[,2])
+code.names <- code.names[unique(codes)]
 code.n <- maxValue(codes)
 
 #code.names <- 'NL' Single map testing
@@ -263,7 +290,7 @@ print(str.code.x, digits = 0)
 
 # Plotting Ref data by Strata
 
-Strata.fn <- 'NL' 
+Strata.fn <- 'EU' 
 png(filename=paste("./Results/Reference/Reference_Data_", Strata.fn, "_Orig.png", sep=""))
 plt <- barplot(str.code, beside=F, main=paste("Reference Data by ", Strata.fn, " strata - original", sep=""), xlab="Strata", legend = code.names, names.arg = Strata.names,
                cex.names = 0.7, col=c("red", "orange", "yellow", "green", "blue", "violet", "pink" , "cyan", "gray", "forestgreen", "orange3"), args.legend = list(x = "topright", cex=0.7))
@@ -426,7 +453,8 @@ Strata.n <- Strata.s + 1
 Strata[is.na(Strata)] <- Strata.n  
 
 #### FOR EUROPE: this function needs to be adapted to 3 maps instead of 2. After Line 593 there should be a "c <-..." and the map "c" should be added to line 594 with respective bias and weight 
-###  FUSION                          
+###  FUSION           
+IIASA[IIASA < 1] <- NA
 maps <- stack(Gal, Thur, IIASA, Strata)
 
 # the 'Strata.n' represents the number of stacked layers
@@ -435,35 +463,67 @@ biomass.fusion <- function(x) {
   for (n in 1:Strata.n) { # loop through number of strata's
     ok <- !is.na(x[,Strata.n]) &  x[,Strata.n] == n # select strata
     
-    x[ok,1:(Strata.n-1)] <- sweep(x[ok,1:(Strata.n-1)],2,as.matrix(bias[n,]), FUN = "+") # add bias to cell values
-    d <- matrix(NA, dim(x), (Strata.n-1)) # create matrix for # amount of maps to store the weights
-    for (l in 1:(Strata.n-1)){
-      d[ok,l] <- weight[n,l] # add weights to non NA values for the # of maps
-    }
-    d[ok,][is.na(x[ok,1:(Strata.n-1)])] <- NA # set weights to NA if the original map does not have a value
-    p <- rowSums(x[ok,1:(Strata.n-1)], na.rm = T) # sum biomass values accross rows for the # number of maps
-    pp <- x[ok,1:(Strata.n-1)]/p # divide sum of biomass through seperate biomass values to get proportional values
+    #x[ok,1:(Strata.n-1)] <- sweep(x[ok,1:(Strata.n-1)],2,as.matrix(bias[n,]), FUN = "+") # add bias to cell values
+    x[ok,1:(Strata.n-1)] <- sweep(matrix(x[ok,1:(Strata.n-1)], ncol = Strata.n-1),2,as.matrix(bias[n,]), FUN = "+") # add bias to cell values
     
-    tot_mat <- x[ok,1:(Strata.n-1)] * pp # bias corrected biomass values * weight
-    result[ok] <- as.matrix(as.integer(round(rowSums(tot_mat, na.rm = T)))) # sum weight applied biomass values and add to result
+    #d <- matrix(NA, dim(x), (Strata.n-1)) # create matrix for # amount of maps to store the weights
+    #for (l in 1:(Strata.n-1)){
+      #d[ok,l] <- weight[n,l] # add weights to non NA values for the # of maps
+    #}
+    d <- matrix(NA, dim(x), (Strata.n-1)) # create matrix for # amount of maps to store the weights
+    d[ok,] <- as.matrix(weight[n,]) # add weights to non NA values for the # of maps
+
+    d[ok,][is.na(x[ok,1:(Strata.n-1)])] <- NA # set weights to NA if the original map does not have a value
+    
+    d <- d[!is.na(d)]
+    # -- recalculate weights --
+    # w <- subset(weight[1:(length(x)-1)],select = !is.na(x[1:(length(x)-1)])) # subset map weights that do not have NA
+    p <- sum(d, na.rm = T) # calculate sum of weight values
+    pp <- d/p # divide weight values by sum to get the proportion to == 100
+    pp <- as.numeric(pp)
+    
+    g <- x[ok,1:(Strata.n-1)] # get biomass values
+    gg <- g[!is.na(g)] # select non Na biomass values
+    
+    # weight * bias
+    result[ok] <- as.matrix(as.integer(round(sum(gg * pp, na.rm = T)))) # multiply biomass values with weight and add as result
+    
+    #p <- rowSums(x[ok,1:(Strata.n-1)], na.rm = T) # sum biomass values accross rows for the # number of maps
+    #p <- rowSums(matrix(x[ok,1:(Strata.n-1)], ncol = Strata.n-1), na.rm = T) # sum biomass values accross rows for the # number of maps
+    #p <- sum(abs(x[ok,1:(Strata.n-1)]),na.rm = T)
+   # g <- mutate(Percent = matrix(x[ok,1:(Strata.n-1)] / sum(matrix(x[ok,1:(Strata.n-1)])), na.rm = T)
+    
+    #pp <- abs(x[ok,1:(Strata.n-1)])/p # divide sum of biomass through seperate biomass values to get proportional values
+    
+    #tot_mat <- x[ok,1:(Strata.n-1)] * pp # bias corrected biomass values * weight
+    #result[ok] <- as.matrix(as.integer(round(rowSums(tot_mat, na.rm = T)))) # sum weight applied biomass values and add to result
   }
   return(result)   
 }
 
-# old
+#old
 # biomass.fusion <- function(x) {
 #   result <- matrix(NA, dim(x)[1], 1)
 #   for (n in 1:Strata.n) {
-#     ok <- !is.na(x[,4]) &  x[,4] == n 
+#     ok <- !is.na(x[,4]) &  x[,4] == n
 #     a <- x[ok,1] + bias[n,1]              # for these pixels, take the values of map 1 and add the bias (output is a subset with only values for this Stratum)
 #     b <- x[ok,2] + bias[n,2]
 #     c <- x[ok,3] + bias[n,3]
 #     result[ok] <- a * weight[n,1] + b * weight[n,2] + c * weight[n,3]  # compute fused biomass for the pixels belonging to this Stratum
 #   }
-#   return(result)   
+#   return(result)
 # }
 
 # x[1846]
+x <- maps
+x <- x[605]
+
+r.samp <- sampleRandom(maps, size=(n+20), na.rm=TRUE, sp=FALSE, asRaster=FALSE) 
+x <- r.samp[1,]
+x <- matrix(x, ncol = 4)
+
+dim( r.samp )[1]
+
 Fused.map <- calc(maps, fun = biomass.fusion)
 Fused.map[Fused.map < 0] <- 0
 
@@ -604,7 +664,8 @@ writeRaster(Fused.map, "./Results/Fused_Map/Fused_Final.tif", overwrite = T)
 # Fused.final <- raster(paste('Results/FUSED_FINAL_', Strata.fn, '.tif', sep=""))
 
 Strata <- raster(paste("./Results/Strata/Strata_", Strata.fn, ".tif", sep=""))
-ref <- raster('./Maps/Ref/ref_ras.tif')
+ref <- raster('./Maps/Ref/ref_ras_EU.tif')
+ref <- crop(ref, Gal)
 Fused.final <- raster(paste('Results/Fused_Map/Fused_Final.tif', sep=""))
 
 fus.par <- read.csv(paste("./Results/Fused_Map/Bias_Weights_", Strata.fn, ".csv", sep=""))
@@ -857,7 +918,7 @@ Sys.time()
 
 ## Reference dataset (Original)
 
-ref <- raster('./Maps/Ref/ref_ras.tif') 
+ref <- raster('./Maps/Ref/ref_ras_EU.tif') 
 ref.fn <- names(ref)
 
 

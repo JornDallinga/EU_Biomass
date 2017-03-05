@@ -53,7 +53,7 @@ ras_NA[ras] <- NA
 ref_ras <- rasterize(dat, ras_NA, dat$country_ID, filename = './Reference/Ref_code_EU.tif', overwrite = T) 
 
 ## Each NFI has a unique code, and there is a raster map where each plot of the NFI has the code value (e.g.: all plots in Spain have value 1, in France is 2, etc.)
-codes <- raster(paste('./Reference/Ref_code_EU.tif', sep=""))
+codes <- raster('./Reference/Ref_code_EU.tif')
 code.names <- as.character(read.csv(paste("./Reference/Codes_EU.csv", sep=""))[,2])
 code.n <- maxValue(codes)
 
