@@ -12,6 +12,12 @@ if (!require(RCurl)) install.packages('RCurl')
 if (!require(VCF)) install.packages('VCF')
 if (!require(plotKML)) install.packages('plotKML')
 if (!require(gdalUtils)) install.packages('gdalUtils')
+if (!require(foreach)) install.packages('foreach')
+if (!require(doParallel)) install.packages('doParallel')
+if (!require(parallel)) install.packages('parallel')
+if (!require(snow)) install.packages('snow')
+if (!require(tcltk)) install.packages('tcltk')
+
 
 # load functions
 source("R/hansen.R")
@@ -20,6 +26,8 @@ source("R/listing_files.R")
 source("R/Unpack_VCF.R")
 source("R/VCF.R")
 source("R/Mosaic_Raster.R")
+
+rasterOptions(tmpdir = "S:/R_Projects/temp_R")
 
 
 # Read biomass points

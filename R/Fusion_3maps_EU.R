@@ -2,6 +2,7 @@
 
 if (!require(randomForest)) install.packages('randomForest')
 if (!require(robust)) install.packages('robust')
+if (!require(ranger)) install.packages('ranger')
 
 
 ######  INPUT DATA  ##########

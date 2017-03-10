@@ -169,88 +169,210 @@ list_f <- list.files("./data/Hansen_download/", pattern = "treecover2000", full.
 #-------- Applies threshold and SDM function for plots that intersect with a tile ----------
 #------------------------------------------------------------------------------------------------------
 
-df <- rastopol[0,]
-for (i in 1:length(list_f)){
-  lr <- raster(list_f[i])
-  c <- crop(rastopol, lr)
+# df <- rastopol[0,]
+# for (i in 1:length(list_f)){
+#   lr <- raster(list_f[i])
+#   c <- crop(rastopol, lr)
+#   
+#   for (b in 1:length(c)){
+#     pb <- winProgressBar(title = "progress bar", min = 0,
+#                          max = length(c), width = 300)
+#     Sys.sleep(0.1)
+#     setWinProgressBar(pb, b, title=paste(round(b/length(c)*100, 0),
+#                                          "% done"))
+#     
+#     pol <- crop(lr,c[b,])
+#     pol[pol < Threshold] <- 0 
+#     pol[pol >= Threshold] <- 1
+#     SDM <- SDM_function(pol)
+#     
+#     if (SDM$lanscape.division.index > .15 | is.na(SDM$lanscape.division.index)){
+#       c$bmAg_JR2000_ll_1km_eur[b] <- NA
+#     }
+#     if (b == length(c))
+#       close(pb)
+#   }
+#   cat(" | Tile ", i , " Out of ", length(list_f) , " Done ")
+#   df <- rbind(df, c)
+# }
+
+# 
+# 
+# df <- rastopol[0,]
+# system.time(for (i in 1:length(list_f)){
+#   lr <- raster(list_f[i])
+#   c <- crop(rastopol, lr)
+#   
+#   for (b in 1:length(c)){
+#     pb <- winProgressBar(title = "progress bar", min = 0,
+#                          max = length(c), width = 300)
+#     Sys.sleep(0.1)
+#     setWinProgressBar(pb, b, title=paste(round(b/length(c)*100, 0),
+#                                          "% done"))
+#     
+#     pol <- crop(lr,c[b,])
+#     M <- extract(pol, c[b,], method = 'simple', sp = F, fun = mean, na.rm = T)
+#     SD <- extract(pol, c[b,], method = 'simple', sp = F, fun = sd, na.rm = T)
+# 
+#     if ((SD <= 15 & M >= 50 & c[b,]$bmAg_JR2000_ll_1km_eur > (M / 2)) | (SD <= 15 & M < 50 & c[b,]$bmAg_JR2000_ll_1km_eur < (2 * M)) == F){
+#       c$bmAg_JR2000_ll_1km_eur[b] <- NA
+#     }
+#     #if ( == F){
+#       #c$bmAg_JR2000_ll_1km_eur[b] <- NA
+#     #}
+#     if (b == length(c))
+#       close(pb)
+#   }
+#   cat(" | Tile ", i , " Out of ", length(list_f) , " Done ")
+#   df <- rbind(df, c)
+# })
+# 
+# # delete features with NA values
+# pol_sel1 <- df[!is.na(df$bmAg_JR2000_ll_1km_eur),]
+# 
+# #check unique values to see if you the dataset requires reclassifying. 
+# unique(lr)
+# 
+# # create dataframe to write final results
+# df2 <- rastopol[0,]
+# 
+# system.time(for (i in 1:length(list_f)){
+#   
+#   pb <- winProgressBar(title = "progress bar", min = 0,
+#                        max = length(list_f), width = 300)
+#   Sys.sleep(0.1)
+#   setWinProgressBar(pb, i, title=paste(round(i/length(list_f)*100, 0),
+#                                        "% done"))
+#   
+#   lr <- raster(list_f[i])
+#   c <- crop(rastopol, lr)
+#   
+#   print(paste0(" | Tile ", i , " Out of ", length(list_f) , ": calculating mean "))
+#   gs <- extract(lr, c, method = 'simple', sp = T, fun = sd, na.rm = T, progress = 'text')
+#   names(gs)[2] <- "SD"
+#   print(paste0(" | Tile ", i , " Out of ", length(list_f) , ": calculating SD "))
+#   gm <- extract(lr, gs, method = 'simple', sp = T, fun = mean, na.rm = T, progress = 'text')
+#   names(gm)[3] <- "Mean"
+#   
+#   if (i == length(list_f)) {
+#     close(pb)
+#   }
+#   
+#   cat(" | Tile ", i , " Out of ", length(list_f) , " Done ")
+#   df2 <- rbind(df2, gm)
+# })
+# 
+# # select plot on homogeneous criteria
+# plot.sel <- rbind(df2[df2$SD <= 15 & df2$Mean >= 50 & df2$bmAg_JR2000_ll_1km_eur > (df2$Mean / 2), ], df2[df2$SD <= 15 & df2$Mean < 50 & df2$bmAg_JR2000_ll_1km_eur < (2 * df2$Mean), ])
+# 
+# # delete features with NA values
+# pol_sel <- df[!is.na(df$bmAg_JR2000_ll_1km_eur),]
+# 
+# # safe output 
+# writeOGR(pol_sel, dsn = paste0(getwd(), '/data/Output'), layer = "pol_sel_EU", driver = "ESRI Shapefile")
+
+#------------- testing large scale extraction. Fastest method so far.------------------------------#
+
+# lets test a method that select plots per tile
+list_f <- list.files("./data/Hansen_download/", pattern = "treecover2000", full.names = T, recursive = T)
+
+# create dataframe to write final results
+df3 <- rastopol[0,]
+detectCores()
+beginCluster( detectCores() -1) #use all but one core
+system.time(for (i in 1:length(list_f)){
   
-  for (b in 1:length(c)){
-    pb <- winProgressBar(title = "progress bar", min = 0,
-                         max = length(c), width = 300)
-    Sys.sleep(0.1)
-    setWinProgressBar(pb, b, title=paste(round(b/length(c)*100, 0),
-                                         "% done"))
+  pb <- winProgressBar(title = "progress bar", min = 0,
+                       max = length(list_f), width = 300)
+  Sys.sleep(0.1)
+  setWinProgressBar(pb, i, title=paste(round(i/length(list_f)*100, 0),
+                                       "% done"))
+  
+  lr <- raster(list_f[i])
+  
+  print(paste0(" | Tile ", i , " Out of ", length(list_f) , ": cropping"))
+  
+  c <- crop(rastopol, lr, progress = T)
+  
+  print(paste0(" | Tile ", i , " Out of ", length(list_f) , ": extracting raster values of ", length(c), " features "))
+  
+  lr_ex <- extract(lr,c, na.rm = T, progress = 'text')
+  
+  print(paste0(" | Tile ", i , " Out of ", length(list_f) , ": calculating mean and sd "))
+  
+  lr_m <- lapply(lr_ex ,mean)
+  lr_sd  <- lapply(lr_ex ,sd)
+  
+  c$Mean <- unlist(lr_m)
+  c$SD <- unlist(lr_sd)
+  
+  if (i == length(list_f)) {
+    close(pb)
+    endCluster()
+    print("Writing output to disk...")
+    plot.sel3 <- rbind(df3[df3$SD <= 15 & df3$Mean >= 50 & df3$bmAg_JR2000_ll_1km_eur > (df3$Mean / 2), ], df3[df3$SD <= 15 & df3$Mean < 50 & df3$bmAg_JR2000_ll_1km_eur < (2 * df3$Mean), ])
+    writeOGR(plot.sel3, dsn = paste0(getwd(), '/data/Output'), layer = "pol_sel_EU", driver = "ESRI Shapefile")
     
-    pol <- crop(lr,c[b,])
-    pol[pol < Threshold] <- 0 
-    pol[pol >= Threshold] <- 1
-    SDM <- SDM_function(pol)
-    
-    if (SDM$lanscape.division.index > .15 | is.na(SDM$lanscape.division.index)){
-      c$bmAg_JR2000_ll_1km_eur[b] <- NA
-    }
-    if (b == length(c))
-      close(pb)
   }
-  cat(" | Tile ", i , " Out of ", length(list_f) , " Done ")
-  df <- rbind(df, c)
+  print(paste0(" | Tile ", i , " Out of ", length(list_f) , " Done "))
+  df3 <- rbind(df3, c)
+})
+
+
+############################# Below - NOT WORKING ##############################
+rastopol
+f <- multicore.tabulate.intersect(cores = 7, c = c, lr = lr)
+multicore.tabulate.intersect<- function(cores, c, lr){ 
+  foreach(i=1:cores, .packages= c("raster","tcltk","foreach"), .combine = rbind) %dopar% {
+    
+    mypb <- tkProgressBar(title = "R progress bar", label = "", min = 0, max = length(c), initial = 0, width = 300) 
+    final<- rastopol[0,]
+    foreach(j = 1:length(c), .combine = rbind) %do% {
+
+      tryCatch({ #not sure if this is necessary now that I'm using foreach, but it is useful for loops.
+        
+        single <- c[j,] #pull out individual polygon to be tabulated
+        crop_1 <- crop(lr, single)
+        ext <- getValues(crop_1) #much faster than extract
+        single$Mean <-mean(ext) #tabulates the values of the raster in the polygon
+        single$SD <-sd(ext) #tabulates the values of the raster in the polygon
+        final <- rbind(final, single)
+        
+        setTkProgressBar(mypb, j, title = "number complete", label = j)
+        
+      }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")}) #trycatch error so it doesn't kill the loop
+      
+      return(final)
+    }  
+  }
 }
 
-# delete features with NA values
-pol_sel <- df[!is.na(df$bmAg_JR2000_ll_1km_eur),]
-
-# safe output 
-writeOGR(pol_sel, dsn = paste0(getwd(), '/data/Output'), layer = "pol_sel_EU", driver = "ESRI Shapefile")
-
-#--- testing large scale extraction. Dimensions are lost at value extraction. looking for a fix
-# lr <- raster(list_f[1])
-# c <- crop(rastopol, lr)
-# 
-# cc <- mask(lr, c[1,])
-# 
-# ovR <- extract(lr,c)
-# output <- matrix(unlist(ovR[1]), ncol = 33)
-# 
-# ovR2 <- extract(lr,c)
-# ovR2 <- getValues(lr)
-# ovR1 <- lapply(ovR, as.numeric)
-# 
-# 
-# test <- ovR1[1]
-# matrix(unlist(test))
-# 
-# ovR[ovR[], FUN = < Threshold] <- 0 
-# lapply(ovR, 
-# c[c >= Threshold] <- 1
-# ovR[1]
-# 
-# ovR[1][ovR[1] < Threshold] <- 0
 
 #------------------------------------------------------------------------------------------------------
 #-------- Applies threshold and SDM function for a group of plots that intersect with a tile ----------
 # Might take longer that above, has to be tested
 #------------------------------------------------------------------------------------------------------
 
-for (i in 1:length(rastopol)){
-  pb <- winProgressBar(title = "progress bar", min = 0,
-                       max = length(rastopol), width = 300)
-  Sys.sleep(0.1)
-  setWinProgressBar(pb, i, title=paste(round(i/length(rastopol)*100, 0),
-                                       "% done"))
-  for (b in 1:length(list_f)){
-    lr <- raster(list_f[b])
-    if (tryCatch(!is.null(crop(lr,extent(rastopol[i,]))), error=function(e) return(FALSE)) == T){
-      c <- crop(lr,rastopol[i,])
-      c[c < Threshold] <- 0 
-      c[c >= Threshold] <- 1
-      SDM <- SDM_function(c)
-      if (SDM$lanscape.division.index > .15 | is.na(SDM$lanscape.division.index))
-        rastopol$bmAg_JR2000_ll_1km_eur[i] <- NA
-    }
-    if (i == length(rastopol))
-      close(pb)
-  }
-}
+# for (i in 1:length(rastopol)){
+#   pb <- winProgressBar(title = "progress bar", min = 0,
+#                        max = length(rastopol), width = 300)
+#   Sys.sleep(0.1)
+#   setWinProgressBar(pb, i, title=paste(round(i/length(rastopol)*100, 0),
+#                                        "% done"))
+#   for (b in 1:length(list_f)){
+#     lr <- raster(list_f[b])
+#     if (tryCatch(!is.null(crop(lr,extent(rastopol[i,]))), error=function(e) return(FALSE)) == T){
+#       c <- crop(lr,rastopol[i,])
+#       c[c < Threshold] <- 0 
+#       c[c >= Threshold] <- 1
+#       SDM <- SDM_function(c)
+#       if (SDM$lanscape.division.index > .15 | is.na(SDM$lanscape.division.index))
+#         rastopol$bmAg_JR2000_ll_1km_eur[i] <- NA
+#     }
+#     if (i == length(rastopol))
+#       close(pb)
+#   }
+# }
 
 
 
