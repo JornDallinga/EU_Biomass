@@ -307,6 +307,13 @@ for (i in 1:length(fls)){
 
 #####################################################################################################
 #####################################################################################################
+# alligning rasters to the same extent (only if pixels = the same size and same coordinate system amonst rasters)
+
+align_rasters(unaligned = "./Maps/IIASA/1km/bmAg_IIASA2010.tif", reference = "./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif",dstfile = "./Maps/IIASA/1km/bmAg_IIASA2010_Alligned.tif", overwrite = T, r = 'near')
+align_rasters(unaligned = './Maps/Thurner/1km/bmAg_Thurner_1km.tif', reference = "./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif",dstfile = './Maps/Thurner/1km/bmAg_Thurner_1km_Alligned.tif', overwrite = T, r = 'near')
+align_rasters(unaligned = "./Maps/Barredo/barredo.tif", reference = "./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif",dstfile = "./Maps/Barredo/barredo_Alligned.tif", overwrite = T, r = 'near')
+
+s <- stack(raster("./Maps/IIASA/1km/bmAg_IIASA2010_Alligned.tif"), Gal, raster('./Maps/Thurner/1km/bmAg_Thurner_1km_Alligned.tif'), raster("./Maps/Barredo/barredo_Alligned.tif"), t)
 #####################################################################################################
 
 
@@ -338,115 +345,94 @@ ls2 <- sub('.*/', '', ls2)
 
 # Set resolution
 Gal <- raster("./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif")
-xsize <- res(Gal)[1]
-ysize <- res(Gal)[2]
+#xsize <- res(Gal)[1]
+#ysize <- res(Gal)[2]
 
 # Use Gdal library (python)
-dir.create('./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS_resampled/', showWarnings = F)
+#dir.create('./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS_resampled/', showWarnings = F)
 # use gdal_translate to resample using the method 'mode' in R
-for (i in 1:length(ls_files)){
-  filename_S <- paste0('./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS_resampled/', 'resample_',ls2[i])
-  if (!file.exists(filename_S)){
-    gdal_translate(src_dataset = ls_files[i], ot = "Int16" ,dst_dataset = paste0('./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS_resampled/', 'resample_',ls2[i]),tr = c(xsize,ysize), r = "mode")
-  }
-}
+#for (i in 1:length(ls_files)){
+#  filename_S <- paste0('./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS_resampled/', 'resample_',ls2[i])
+#  if (!file.exists(filename_S)){
+#    gdal_translate(src_dataset = ls_files[i], ot = "Int16" ,dst_dataset = paste0('./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS_resampled/', 'resample_',ls2[i]),tr = c(xsize,ysize), r = "mode")
+#  }
+#}
 
 
 # Reclassify MODIS 
-dir.create('./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS_resampled_Reclassified/', showWarnings = F)
+dir.create('./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS_resampled_Reclassified2/', showWarnings = F)
 
-ls_files <- list.files("./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS_resampled/", pattern = '\\.tif$', recursive = T,full.names = T)
-ls2 <- list.files("./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS_resampled/", pattern = "\\.tif$", full.names = F, recursive = T)
+ls_files <- list.files("./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS/", pattern = '\\.tif$', recursive = T,full.names = T)
+ls2 <- list.files("./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS/", pattern = "\\.tif$", full.names = F, recursive = T)
 ls2 <- sub('.*/', '', ls2)
 
 # Reclassifying cells
 for (i in 1:length(ls_files)){
-  filename_S <- paste0('./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS_resampled_Reclassified/', 'reclass_',ls2[i])
+  filename_S <- paste0('./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS_resampled_Reclassified2/', 'reclass_',ls2[i])
   if (!file.exists(filename_S)){
     lr <- raster(ls_files[i])
     lr[lr > 100] <- NA # remove water and other thematics from the MODIS data
-    writeRaster(lr, filename = paste0('./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS_resampled_Reclassified/', 'reclass_',ls2[i]), overwrite = F)
+    writeRaster(lr, filename = paste0('./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS_resampled_Reclassified2/', 'reclass_',ls2[i]), overwrite = F)
   }
 }
 
 
 ### Mosaic using Gdal
 # Mosaic all reprojected and resampled raster tiles
-dir.create('./Covariates/MODIS_VCF_2005/transformed/Mosaic/', showWarnings = F)
-ls_files_m <- list.files("./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS_resampled_Reclassified/", pattern = '\\.tif$', recursive = T,full.names = T)
-mosaic_rasters(gdalfile = ls_files_m, dst_dataset = "./Covariates/MODIS_VCF_2005/transformed/Mosaic/Mosaic.tif", overwrite = T, ot = "Int16")
+dir.create('./Covariates/MODIS_VCF_2005/transformed/Mosaic2/', showWarnings = F)
+ls_files_m <- list.files("./Covariates/MODIS_VCF_2005/transformed/WGS_MODIS_resampled_Reclassified2/", pattern = '\\.tif$', recursive = T,full.names = T)
+mosaic_rasters(gdalfile = ls_files_m, dst_dataset = "./Covariates/MODIS_VCF_2005/transformed/Mosaic2/Mosaic.tif", overwrite = T, ot = "Int16")
 
+dir.create("./Covariates/Outputs/MODIS_VCF/", showWarnings = F)
+dir.create("./Covariates/Outputs/MODIS_VCF/Mosaic/", showWarnings = F)
+
+## allign raster with ref maps
+aggregate(raster("./Covariates/MODIS_VCF_2005/transformed/Mosaic2/Mosaic.tif"), fact = 4, fun = modal, filename= "./Covariates/Outputs/MODIS_VCF/Mosaic/Mosaic_aggre.tif", progress = 'text', overwrite = T)
+align_rasters(unaligned = "./Covariates/Outputs/MODIS_VCF/Mosaic/Mosaic_aggre.tif", reference = "./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif",dstfile = "./Covariates/Outputs/MODIS_VCF/Mosaic/Mosaic_aggre_align.tif", overwrite = T, r = 'near')
+
+t <- raster("./Covariates/Outputs/MODIS_VCF/Mosaic/Mosaic_aggre.tif")
+t[t < 0] <- NA # remove negative values
+writeRaster(t, "./Covariates/Outputs/MODIS_VCF/Mosaic/Mosaic_aggre.tif", overwrite = T)
+
+s <- stack(raster("./Covariates/Outputs/MODIS_VCF/Mosaic/Mosaic_aggre_align.tif"),Gal)
 ### plotting
-t <- raster("./Covariates/MODIS_VCF_2005/transformed/Mosaic/Mosaic.tif")
-t
 plot(t)
 
 ### cropping
-t <- raster("./Covariates/MODIS_VCF_2005/transformed/Mosaic/Mosaic.tif")
-crop(t,Gal, filename = "./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic.tif", overwrite = T)
+#t <- raster("./Covariates/MODIS_VCF_2005/transformed/Mosaic/Mosaic.tif")
+#crop(t,Gal, filename = "./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic.tif", overwrite = T)
 
 
 ### plotting
-
-t <- raster("./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic.tif")
 plot(t)
 
 
+#-----------------CCI & CCI ArcGIS---------------------------------------------------------------------
 
-#-----------------CCI---------------------------------------------------------------------
+cci <- raster("./Covariates/Outputs/CCI_2005/CCI_Mul.tif")
+# First aggregating using mode, then aligning rasters to a biomass ref map using 'near'.
+aggregate(raster("./Covariates/Outputs/CCI_2005/CCI_Mul.tif"), fact = 3, fun = modal, filename= "./Covariates/Outputs/CCI_2005/CCI_Mul_aggr.tif", progress = 'text', overwrite = T)
+align_rasters(unaligned = "./Covariates/Outputs/CCI_2005/CCI_Mul_aggr.tif", reference = "./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif",dstfile = "./Covariates/Outputs/CCI_2005/CCI_Mul_align.tif", r = 'near')
+cci <- raster("./Covariates/Outputs/CCI_2005/CCI_Mul_align.tif")
 
-cci <- raster("./ESACCI-LC-L4-LCCS-Map-300m-P5Y-2005-v1.6.1.tif/ESACCI-LC-L4-LCCS-Map-300m-P5Y-2005-v1.6.1.tif")
-ex <- extent(Gal)
-cci <- crop(cci2, Gal)
-writeRaster(cci, filename = './Covariates/CCI_2005/clip_cci_EU.tif')
 
-Gal <- raster("./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif")
-
-ls_files <- list.files('./Covariates/CCI_2005/', pattern = 'clip_cci_EU.tif', full.names = T)
-xsize <- res(Gal)[1]
-ysize <- res(Gal)[2]
-gdal_translate(src_dataset = ls_files[1], ot = "Int16" ,dst_dataset = './Covariates/CCI_2005/CCI_2005_resample.tif',tr = c(xsize,ysize), r = "mode")
-cci <- raster('./Covariates/CCI_2005/CCI_2005_resample.tif')
-
-writeRaster(cci, filename = './Covariates/CCI_2005/CCI_2005_resample_EU.tif', overwrite = F)
 
 #-----------------Water---------------------------------------------------------------------
 
 water <- raster("./Covariates/CCI_Water/ESACCI-LC-L4-WB-Map-150m-P13Y-2000-v4.0.tif")
+# Run ArcGIS model first
+water <- raster("./Covariates/Outputs/CCI_Water/Water_EU_Clip.tif") # result of Arcgis function (Dont use snapped to extent output)
+aggregate(water, fact = 6, fun = modal, filename= "./Covariates/Outputs/CCI_Water/CCI_Water_aggr_R.tif", progress = 'text', overwrite = T)
+resample(x = raster("./Covariates/Outputs/CCI_Water/CCI_Water_aggr_R.tif"), y = raster("./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif"), method = "ngb", filename = "./Covariates/Outputs/CCI_Water/CCI_Water_aggr_Resam_R.tif", progress = 'text', overwrite = T)
+#align_rasters(unaligned = "./Covariates/Outputs/CCI_Water/CCI_Water_aggr_R.tif", reference = "./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif", dstfile = "./Covariates/Outputs/CCI_Water/CCI_Water_aggr_Align_R.tif", r = "near", overwrite = T)
 
-ex <- extent(Gal)
-water <- crop(water, Gal)
-writeRaster(water, filename = './Covariates/CCI_Water/CCI_Water_EU.tif', overwrite = T)
 
-Gal <- raster("./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif")
-
-ls_files <- list.files('./Covariates/CCI_Water/', pattern = 'CCI_Water_EU.tif', full.names = T)
-xsize <- res(Gal)[1]
-ysize <- res(Gal)[2]
-gdal_translate(src_dataset = ls_files[1], ot = "Int16" ,dst_dataset = './Covariates/CCI_Water/CCI_Water_resample.tif',tr = c(xsize,ysize), r = "mode")
-water <- raster('./Covariates/CCI_Water/CCI_Water_resample.tif')
-
-writeRaster(water, filename = "./Covariates/CCI_Water/CCI_Water_resample_EU.tif", overwrite = T)
-water <- raster("./Covariates/CCI_Water/CCI_Water_resample_EU.tif")
 
 #-----------------Height---------------------------------------------------------------------
 
+# similar results than the ArcGIS model
 height <- raster("./Covariates/Height/Height_large_extent.tif")
 Gal <- raster("./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif")
-
-ex <- extent(Gal)
-height <- crop(height, Gal)
-writeRaster(height, filename = './Covariates/Height/Height_EU.tif', overwrite = T)
-
-
-
-ls_files <- list.files('./Covariates/Height/', pattern = 'Height_EU.tif', full.names = T)
-xsize <- res(Gal)[1]
-ysize <- res(Gal)[2]
-gdal_translate(src_dataset = ls_files[1], ot = "Int16" ,dst_dataset = './Covariates/Height/Height_resample.tif',tr = c(xsize,ysize), r = "mode")
-height <- raster('./Covariates/Height/Height_resample.tif')
-
-writeRaster(height, filename = "./Covariates/Height/Height_resample_EU.tif", overwrite = T)
-height <- raster("./Covariates/Height/Height_resample_EU.tif")
+align_rasters(unaligned = "./Covariates/Height/Height_large_extent.tif", reference = "./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif", dstfile = "./Covariates/Height/Height_align.tif", r = "near", overwrite = T)
 
 

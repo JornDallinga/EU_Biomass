@@ -320,32 +320,32 @@ system.time(for (i in 1:length(list_f)){
 
 
 ############################# Below - NOT WORKING ##############################
-rastopol
-f <- multicore.tabulate.intersect(cores = 7, c = c, lr = lr)
-multicore.tabulate.intersect<- function(cores, c, lr){ 
-  foreach(i=1:cores, .packages= c("raster","tcltk","foreach"), .combine = rbind) %dopar% {
-    
-    mypb <- tkProgressBar(title = "R progress bar", label = "", min = 0, max = length(c), initial = 0, width = 300) 
-    final<- rastopol[0,]
-    foreach(j = 1:length(c), .combine = rbind) %do% {
-
-      tryCatch({ #not sure if this is necessary now that I'm using foreach, but it is useful for loops.
-        
-        single <- c[j,] #pull out individual polygon to be tabulated
-        crop_1 <- crop(lr, single)
-        ext <- getValues(crop_1) #much faster than extract
-        single$Mean <-mean(ext) #tabulates the values of the raster in the polygon
-        single$SD <-sd(ext) #tabulates the values of the raster in the polygon
-        final <- rbind(final, single)
-        
-        setTkProgressBar(mypb, j, title = "number complete", label = j)
-        
-      }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")}) #trycatch error so it doesn't kill the loop
-      
-      return(final)
-    }  
-  }
-}
+# rastopol
+# f <- multicore.tabulate.intersect(cores = 7, c = c, lr = lr)
+# multicore.tabulate.intersect<- function(cores, c, lr){ 
+#   foreach(i=1:cores, .packages= c("raster","tcltk","foreach"), .combine = rbind) %dopar% {
+#     
+#     mypb <- tkProgressBar(title = "R progress bar", label = "", min = 0, max = length(c), initial = 0, width = 300) 
+#     final<- rastopol[0,]
+#     foreach(j = 1:length(c), .combine = rbind) %do% {
+# 
+#       tryCatch({ #not sure if this is necessary now that I'm using foreach, but it is useful for loops.
+#         
+#         single <- c[j,] #pull out individual polygon to be tabulated
+#         crop_1 <- crop(lr, single)
+#         ext <- getValues(crop_1) #much faster than extract
+#         single$Mean <-mean(ext) #tabulates the values of the raster in the polygon
+#         single$SD <-sd(ext) #tabulates the values of the raster in the polygon
+#         final <- rbind(final, single)
+#         
+#         setTkProgressBar(mypb, j, title = "number complete", label = j)
+#         
+#       }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")}) #trycatch error so it doesn't kill the loop
+#       
+#       return(final)
+#     }  
+#   }
+# }
 
 
 #------------------------------------------------------------------------------------------------------

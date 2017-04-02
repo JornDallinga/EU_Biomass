@@ -32,7 +32,7 @@ ref <- crop(ref, Gal)
 #vcf[vcf < 0] <- NA
 #vcf[vcf > 100] <- NA
 #writeRaster(vcf, filename = "./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic_EU.tif")
-vcf <- raster("./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic_EU.tif")
+vcf <- raster("./Covariates/MODIS_VCF_2005/transformed/Mosaic2/Mosaic_allign.tif")
 
 
 #hei <- raster(paste('./Strata/HEI_', cont, '.tif', sep=""))
