@@ -311,7 +311,7 @@ system.time(for (i in 1:length(list_f)){
     endCluster()
     print("Writing output to disk...")
     plot.sel3 <- rbind(df3[df3$SD <= 15 & df3$Mean >= 50 & df3$bmAg_JR2000_ll_1km_eur > (df3$Mean / 2), ], df3[df3$SD <= 15 & df3$Mean < 50 & df3$bmAg_JR2000_ll_1km_eur < (2 * df3$Mean), ])
-    writeOGR(plot.sel3, dsn = paste0(getwd(), '/data/Output'), layer = "pol_sel_EU", driver = "ESRI Shapefile")
+    writeOGR(plot.sel3, dsn = paste0(getwd(), '/data/Output'), layer = "pol_sel_EU2", driver = "ESRI Shapefile")
     
   }
   print(paste0(" | Tile ", i , " Out of ", length(list_f) , " Done "))
@@ -397,18 +397,20 @@ system.time(for (i in 1:length(list_f)){
 # -------------------------------------------------------------------------------------------------------------- #
 
 # Read biomass polygons
-ref_pol <- readOGR(dsn = "./data/Output", layer = "pol_sel_EU")
-
-# select intersecting points from rasterized polygons
-ref_data <- crop(df_final, ref_pol)
-#writeOGR(ref_data, dsn = paste0(getwd(), '/data'), layer = "ref_data", driver = "ESRI Shapefile")
-
-rm(ref_pol, df, df_2, df_del, df_final, df_mean, df_sel, i, lis, n_occur)
-
-# -------------------------------------------------------------------------------------------------------------- #
-
+ref_pol <- readOGR(dsn = "./data/Output", layer = "pol_sel_EU2")
 # Rasterize points 
 # The whole upper section of this script can be simplified by running the rasterize function,
 # instead of keep working with spatialpointsdataframes
-ref_data <- readOGR(dsn = "./data", layer = "ref_data")
-rasterize(ref_data, ras, ref_data$bA_JR20, fun=mean, filename = './Maps/Ref/ref_ras_EU.tif') 
+rasterize(ref_pol, ras, ref_pol$bA_JR20, fun=mean, filename = './Maps/Ref/ref_ras_EU2.tif') 
+
+# select intersecting points from rasterized polygons
+#ref_data <- crop(df_final, ref_pol)
+#writeOGR(ref_data, dsn = paste0(getwd(), '/data'), layer = "ref_data", driver = "ESRI Shapefile")
+
+#rm(ref_pol, df, df_2, df_del, df_final, df_mean, df_sel, i, lis, n_occur)
+
+# -------------------------------------------------------------------------------------------------------------- #
+
+
+#ref_data <- readOGR(dsn = "./data", layer = "ref_data")
+#rasterize(ref_data, ras, ref_data$bA_JR20, fun=mean, filename = './Maps/Ref/ref_ras_EU.tif') 

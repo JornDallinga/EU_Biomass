@@ -30,6 +30,7 @@ source("R/Mosaic_Raster.R")
 rasterOptions(tmpdir = "S:/R_Projects/temp_R")
 
 
+
 # Read biomass points
 shape <- readOGR(dsn = "./Ref_datasets/", layer = "Netherlands_NFI")
 # Transform coordinate system
@@ -414,6 +415,7 @@ cci <- raster("./Covariates/Outputs/CCI_2005/CCI_Mul.tif")
 aggregate(raster("./Covariates/Outputs/CCI_2005/CCI_Mul.tif"), fact = 3, fun = modal, filename= "./Covariates/Outputs/CCI_2005/CCI_Mul_aggr.tif", progress = 'text', overwrite = T)
 align_rasters(unaligned = "./Covariates/Outputs/CCI_2005/CCI_Mul_aggr.tif", reference = "./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif",dstfile = "./Covariates/Outputs/CCI_2005/CCI_Mul_align.tif", r = 'near')
 cci <- raster("./Covariates/Outputs/CCI_2005/CCI_Mul_align.tif")
+
 
 
 
