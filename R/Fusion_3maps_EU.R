@@ -446,98 +446,98 @@ Gal[Gal < 1] <- NA
 maps <- stack(Gal, Thur, IIASA, Strata)
 
 
-# Biomass fusion function is broken...
-# the 'Strata.n' represents the number of stacked layers
-biomass.fusion <- function(x) {
-  result <- matrix(NA, dim(x)[1], 1) # create result matrix which stores the final biomass values
-
-  for (n in 1:Strata.n) { # loop through number of strata's
-    ok <- !is.na(x[,Strata.n]) &  x[,Strata.n] == n # select strata
-    
-    #x[ok,1:(Strata.n-1)] <- sweep(x[ok,1:(Strata.n-1)],2,as.matrix(bias[n,]), FUN = "+") # add bias to cell values
-    x[ok,1:(Strata.n-1)] <- sweep(matrix(x[ok,1:(Strata.n-1)], ncol = Strata.n-1),2,as.matrix(bias[n,]), FUN = "+") # add bias to cell values
-    
-    #d <- matrix(NA, dim(x), (Strata.n-1)) # create matrix for # amount of maps to store the weights
-    #for (l in 1:(Strata.n-1)){
-      #d[ok,l] <- weight[n,l] # add weights to non NA values for the # of maps
-    #}
-    d <- matrix(NA, dim(x), (Strata.n-1)) # create matrix for # amount of maps to store the weights
-    d[ok,] <- as.matrix(weight[n,]) # add weights to non NA values for the # of maps
-
-    #x[ok,][x[ok,1:(Strata.n-1) < 0]] <- NA # set weights to NA if the original map does not have a value
-    #x[ok,][is.na(x[ok,1:(Strata.n-1)]) | x[ok,1:(Strata.n-1)] < 0] <- NA # set weights to NA if the original map does not have a value
-    #[x[ok,1:(Strata.n-1)] == -10] <- NA
-    #x[ok,][x < 0] <- NA
-    #x[x[ok,] < 0] <- NA
-    d[ok,][is.na(x[ok,1:(Strata.n-1)])] <- NA # set weights to NA if the original map does not have a value
-    
-    #d <- d[!is.na(d)]
-    #d[ok,][!is.na(d)]
-    # -- recalculate weights --
-    p <- sum(d, na.rm = T) # calculate sum of weight values
-    pp <- d/p # divide weight values by sum to get the proportion to == 100
-    pp <- as.numeric(pp)
-    
-    g <- x[ok,1:(Strata.n-1)] # get biomass values
-    g[g < 0] <- 0
-    gg <- g[!is.na(g)] # select non Na biomass values
-
-    #d[ok,][!is.na(d)]/sum(d[ok,][!is.na(d)], na.rm = T) test
-    # weight * bias
-    result[ok] <- as.matrix(as.integer(round(sum(gg * pp, na.rm = T)))) # multiply biomass values with weight and add as result
-    #result[ok] <- as.matrix(as.integer(round(sum(x[ok,][!is.na(x[ok,1:(Strata.n-1)])] * d[ok,][!is.na(d)]/sum(d[ok,][!is.na(d)], na.rm = T), na.rm = T)))) # multiply biomass values with weight and add as result
-    
-    #p <- rowSums(x[ok,1:(Strata.n-1)], na.rm = T) # sum biomass values accross rows for the # number of maps
-    #p <- rowSums(matrix(x[ok,1:(Strata.n-1)], ncol = Strata.n-1), na.rm = T) # sum biomass values accross rows for the # number of maps
-    #p <- sum(abs(x[ok,1:(Strata.n-1)]),na.rm = T)
-   # g <- mutate(Percent = matrix(x[ok,1:(Strata.n-1)] / sum(matrix(x[ok,1:(Strata.n-1)])), na.rm = T)
-    
-    #pp <- abs(x[ok,1:(Strata.n-1)])/p # divide sum of biomass through seperate biomass values to get proportional values
-    
-    #tot_mat <- x[ok,1:(Strata.n-1)] * pp # bias corrected biomass values * weight
-    #result[ok] <- as.matrix(as.integer(round(rowSums(tot_mat, na.rm = T)))) # sum weight applied biomass values and add to result
-  }
-  return(result)   
-}
-
-
-#old
-biomass.fusion <- function(x) {
-  result <- matrix(NA, dim(x)[1], 1)
-  for (n in 1:Strata.n) {
-    ok <- !is.na(x[,3]) &  x[,3] == n
-    a <- x[ok,1] + bias[n,1]              # for these pixels, take the values of map 1 and add the bias (output is a subset with only values for this Stratum)
-    b <- x[ok,2] + bias[n,2]
-    c <- x[ok,3] + bias[n,3]
-    
-    aa <- a * weight[n,1]
-    bb <- b * weight[n,2]
-    cc <- c * weight[n,3]
-    
-    
-    result[ok] <- a * weight[n,1] + b * weight[n,2] +  c * weight[n,2]  # compute fused biomass for the pixels belonging to this Stratum
-  }
-  return(result)
-}
-
-
-
-
-#old
-biomass.fusion <- function(x) {
-  result <- matrix(NA, dim(x)[1], 1)
-  for (n in 1:Strata.n) {
-    ok <- !is.na(x[,4]) &  x[,4] == n
-    g <- x[1:3] + as.matrix(bias[n,])
-    g <- x[ok,1:3] + as.matrix(bias[n,])
-    a <- x[ok,1] + bias[n,1]              # for these pixels, take the values of map 1 and add the bias (output is a subset with only values for this Stratum)
-    b <- x[ok,2] + bias[n,2]
-    c <- x[ok,3] + bias[n,3]
-    result[ok] <- g[1] * weight[n,1] + g[2] * weight[n,2] + g[3] * weight[n,3]  # compute fused biomass for the pixels belonging to this Stratum
-    #result[ok] <- a * weight[n,1] + b * weight[n,2] + c * weight[n,3]  # compute fused biomass for the pixels belonging to this Stratum
-  }
-  return(result)
-}
+# # Biomass fusion function is broken...
+# # the 'Strata.n' represents the number of stacked layers
+# biomass.fusion <- function(x) {
+#   result <- matrix(NA, dim(x)[1], 1) # create result matrix which stores the final biomass values
+# 
+#   for (n in 1:Strata.n) { # loop through number of strata's
+#     ok <- !is.na(x[,Strata.n]) &  x[,Strata.n] == n # select strata
+#     
+#     #x[ok,1:(Strata.n-1)] <- sweep(x[ok,1:(Strata.n-1)],2,as.matrix(bias[n,]), FUN = "+") # add bias to cell values
+#     x[ok,1:(Strata.n-1)] <- sweep(matrix(x[ok,1:(Strata.n-1)], ncol = Strata.n-1),2,as.matrix(bias[n,]), FUN = "+") # add bias to cell values
+#     
+#     #d <- matrix(NA, dim(x), (Strata.n-1)) # create matrix for # amount of maps to store the weights
+#     #for (l in 1:(Strata.n-1)){
+#       #d[ok,l] <- weight[n,l] # add weights to non NA values for the # of maps
+#     #}
+#     d <- matrix(NA, dim(x), (Strata.n-1)) # create matrix for # amount of maps to store the weights
+#     d[ok,] <- as.matrix(weight[n,]) # add weights to non NA values for the # of maps
+# 
+#     #x[ok,][x[ok,1:(Strata.n-1) < 0]] <- NA # set weights to NA if the original map does not have a value
+#     #x[ok,][is.na(x[ok,1:(Strata.n-1)]) | x[ok,1:(Strata.n-1)] < 0] <- NA # set weights to NA if the original map does not have a value
+#     #[x[ok,1:(Strata.n-1)] == -10] <- NA
+#     #x[ok,][x < 0] <- NA
+#     #x[x[ok,] < 0] <- NA
+#     d[ok,][is.na(x[ok,1:(Strata.n-1)])] <- NA # set weights to NA if the original map does not have a value
+#     
+#     #d <- d[!is.na(d)]
+#     #d[ok,][!is.na(d)]
+#     # -- recalculate weights --
+#     p <- sum(d, na.rm = T) # calculate sum of weight values
+#     pp <- d/p # divide weight values by sum to get the proportion to == 100
+#     pp <- as.numeric(pp)
+#     
+#     g <- x[ok,1:(Strata.n-1)] # get biomass values
+#     g[g < 0] <- 0
+#     gg <- g[!is.na(g)] # select non Na biomass values
+# 
+#     #d[ok,][!is.na(d)]/sum(d[ok,][!is.na(d)], na.rm = T) test
+#     # weight * bias
+#     result[ok] <- as.matrix(as.integer(round(sum(gg * pp, na.rm = T)))) # multiply biomass values with weight and add as result
+#     #result[ok] <- as.matrix(as.integer(round(sum(x[ok,][!is.na(x[ok,1:(Strata.n-1)])] * d[ok,][!is.na(d)]/sum(d[ok,][!is.na(d)], na.rm = T), na.rm = T)))) # multiply biomass values with weight and add as result
+#     
+#     #p <- rowSums(x[ok,1:(Strata.n-1)], na.rm = T) # sum biomass values accross rows for the # number of maps
+#     #p <- rowSums(matrix(x[ok,1:(Strata.n-1)], ncol = Strata.n-1), na.rm = T) # sum biomass values accross rows for the # number of maps
+#     #p <- sum(abs(x[ok,1:(Strata.n-1)]),na.rm = T)
+#    # g <- mutate(Percent = matrix(x[ok,1:(Strata.n-1)] / sum(matrix(x[ok,1:(Strata.n-1)])), na.rm = T)
+#     
+#     #pp <- abs(x[ok,1:(Strata.n-1)])/p # divide sum of biomass through seperate biomass values to get proportional values
+#     
+#     #tot_mat <- x[ok,1:(Strata.n-1)] * pp # bias corrected biomass values * weight
+#     #result[ok] <- as.matrix(as.integer(round(rowSums(tot_mat, na.rm = T)))) # sum weight applied biomass values and add to result
+#   }
+#   return(result)   
+# }
+# 
+# 
+# #old
+# biomass.fusion <- function(x) {
+#   result <- matrix(NA, dim(x)[1], 1)
+#   for (n in 1:Strata.n) {
+#     ok <- !is.na(x[,3]) &  x[,3] == n
+#     a <- x[ok,1] + bias[n,1]              # for these pixels, take the values of map 1 and add the bias (output is a subset with only values for this Stratum)
+#     b <- x[ok,2] + bias[n,2]
+#     c <- x[ok,3] + bias[n,3]
+#     
+#     aa <- a * weight[n,1]
+#     bb <- b * weight[n,2]
+#     cc <- c * weight[n,3]
+#     
+#     
+#     result[ok] <- a * weight[n,1] + b * weight[n,2] +  c * weight[n,2]  # compute fused biomass for the pixels belonging to this Stratum
+#   }
+#   return(result)
+# }
+# 
+# 
+# 
+# 
+# #old
+# biomass.fusion <- function(x) {
+#   result <- matrix(NA, dim(x)[1], 1)
+#   for (n in 1:Strata.n) {
+#     ok <- !is.na(x[,4]) &  x[,4] == n
+#     g <- x[1:3] + as.matrix(bias[n,])
+#     g <- x[ok,1:3] + as.matrix(bias[n,])
+#     a <- x[ok,1] + bias[n,1]              # for these pixels, take the values of map 1 and add the bias (output is a subset with only values for this Stratum)
+#     b <- x[ok,2] + bias[n,2]
+#     c <- x[ok,3] + bias[n,3]
+#     result[ok] <- g[1] * weight[n,1] + g[2] * weight[n,2] + g[3] * weight[n,3]  # compute fused biomass for the pixels belonging to this Stratum
+#     #result[ok] <- a * weight[n,1] + b * weight[n,2] + c * weight[n,3]  # compute fused biomass for the pixels belonging to this Stratum
+#   }
+#   return(result)
+# }
 
 # working function. but very slow!
 biomass.fusion <- function(x) {
@@ -547,8 +547,10 @@ biomass.fusion <- function(x) {
   g[g < 0] <- 0
   w <- weight[n,1:(Strata.n-1)]
   w[is.na(g)]<- NA
-  w <- w/1
-  result <- as.integer(round(sum(w*g, na.rm = T)))
+  p <- sum(w, na.rm = T) # calculate sum of weight values
+  pp <- w/p # divide weight values by sum to get the proportion to == 1
+  pp <- as.numeric(pp)
+  result <- as.integer(round(sum(pp*g, na.rm = T)))
   return(result)
 }
 
@@ -570,10 +572,9 @@ plot(Gal)
 e <- drawExtent()
 maps1 <- crop(maps,e)
 
-detectCores()
-beginCluster( detectCores() -1) #use all but one core
-system.time(Fused.map1 <- calc(maps1, fun = biomass.fusion, progress = 'text'))
-endCluster()
+
+system.time(Fused.map <- calc(maps, fun = biomass.fusion, progress = 'text'))
+
 
 Fused.map[Fused.map < 0] <- 0
 Fused.map[Strata == 4] <- NA
@@ -713,9 +714,9 @@ writeRaster(Fused.map, "./Results/Fused_Map/Fused_Final.tif", overwrite = T)
 # Fused.final <- raster(paste('Results/FUSED_FINAL_', Strata.fn, '.tif', sep=""))
 
 Strata <- raster(paste("./Results/Strata/Strata_", Strata.fn, ".tif", sep=""))
-ref <- raster('./Maps/Ref/ref_ras_EU.tif')
+ref <- raster('./Maps/Ref/ref_ras_EU2.tif')
 ref <- crop(ref, Gal)
-Fused.final <- raster(paste('Results/Fused_Map/Mosaic/Fused.map_EU.tif', sep=""))
+Fused.final <- raster(paste('Results/Fused_Map/Mosaic/Fused.map_final_EU.tif', sep=""))
 
 fus.par <- read.csv(paste("./Results/Fused_Map/Bias_Weights_", Strata.fn, ".csv", sep=""))
 
@@ -967,7 +968,7 @@ Sys.time()
 
 ## Reference dataset (Original)
 
-ref <- raster('./Maps/Ref/ref_ras_EU.tif') 
+ref <- raster('./Maps/Ref/ref_ras_EU2.tif') 
 ref.fn <- names(ref)
 
 
@@ -994,7 +995,7 @@ rm(cal)
 
 #Gal <- raster(paste('./Input_Maps/Gal_1km_', cont, '.tif', sep=""))
 Gal <- raster("./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif")
-Gal <- raster("./Maps/Barredo/barredo_reproj.tif")
+Gal <- raster("./Maps/Barredo/barredo_Alligned.tif")
 Gal[Gal < 0] <- NA
 
 # cant get Bar en Gal extents to match, fix required
@@ -1009,7 +1010,7 @@ IIASA <- raster("./Maps/IIASA/1km/bmAg_IIASA2010_Alligned.tif")
 Thur <- raster('./Maps/Thurner/1km/bmAg_Thurner_1km_Alligned.tif')  
 #Thur <- crop(Thur, Gal)
 #ref <- raster(paste('./Reference/Ref_', cont, '.tif', sep=""))
-ref <- raster('./Maps/Ref/ref_ras_EU.tif')
+ref <- raster('./Maps/Ref/ref_ras_EU2.tif')
 ref <- crop(ref, Gal)
 
 #vcf <- raster("./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic.tif")
@@ -1191,10 +1192,6 @@ names(Strata) <- paste("Strata_", Strata.fn, sep="")
 rm(list=ls(pattern='str.'))
 
 Sys.time()
-
--------------------------
-  
-Strata <- raster('./Results/Strata/Strata_EU.tif')
 
 
 
@@ -1575,49 +1572,20 @@ maps <- stack(Gal, Thur, IIASA, Strata)
 
 # the 'Strata.n' represents the number of stacked layers
 biomass.fusion <- function(x) {
-  result <- matrix(NA, dim(x)[1], 1) # create result matrix which stores the final biomass values
-  for (n in 1:Strata.n) { # loop through number of strata's
-    ok <- !is.na(x[,Strata.n]) &  x[,Strata.n] == n # select strata
-    
-    #x[ok,1:(Strata.n-1)] <- sweep(x[ok,1:(Strata.n-1)],2,as.matrix(bias[n,]), FUN = "+") # add bias to cell values
-    x[ok,1:(Strata.n-1)] <- sweep(matrix(x[ok,1:(Strata.n-1)], ncol = Strata.n-1),2,as.matrix(bias[n,]), FUN = "+") # add bias to cell values
-    
-    #d <- matrix(NA, dim(x), (Strata.n-1)) # create matrix for # amount of maps to store the weights
-    #for (l in 1:(Strata.n-1)){
-    #d[ok,l] <- weight[n,l] # add weights to non NA values for the # of maps
-    #}
-    d <- matrix(NA, dim(x), (Strata.n-1)) # create matrix for # amount of maps to store the weights
-    d[ok,] <- as.matrix(weight[n,]) # add weights to non NA values for the # of maps
-    
-    d[ok,][is.na(x[ok,1:(Strata.n-1)])] <- NA # set weights to NA if the original map does not have a value
-    
-    d <- d[!is.na(d)]
-    # -- recalculate weights --
-    # w <- subset(weight[1:(length(x)-1)],select = !is.na(x[1:(length(x)-1)])) # subset map weights that do not have NA
-    p <- sum(d, na.rm = T) # calculate sum of weight values
-    pp <- d/p # divide weight values by sum to get the proportion to == 100
-    pp <- as.numeric(pp)
-    
-    g <- x[ok,1:(Strata.n-1)] # get biomass values
-    gg <- g[!is.na(g)] # select non Na biomass values
-    
-    # weight * bias
-    result[ok] <- as.matrix(as.integer(round(sum(gg * pp, na.rm = T)))) # multiply biomass values with weight and add as result
-    
-    #p <- rowSums(x[ok,1:(Strata.n-1)], na.rm = T) # sum biomass values accross rows for the # number of maps
-    #p <- rowSums(matrix(x[ok,1:(Strata.n-1)], ncol = Strata.n-1), na.rm = T) # sum biomass values accross rows for the # number of maps
-    #p <- sum(abs(x[ok,1:(Strata.n-1)]),na.rm = T)
-    # g <- mutate(Percent = matrix(x[ok,1:(Strata.n-1)] / sum(matrix(x[ok,1:(Strata.n-1)])), na.rm = T)
-    
-    #pp <- abs(x[ok,1:(Strata.n-1)])/p # divide sum of biomass through seperate biomass values to get proportional values
-    
-    #tot_mat <- x[ok,1:(Strata.n-1)] * pp # bias corrected biomass values * weight
-    #result[ok] <- as.matrix(as.integer(round(rowSums(tot_mat, na.rm = T)))) # sum weight applied biomass values and add to result
-  }
-  return(result)   
+  m <- matrix(x, nrow= 1, ncol=4)
+  n <- m[,4]
+  g <- m[1:(Strata.n-1)] + as.matrix(bias[n,])
+  g[g < 0] <- 0
+  w <- weight[n,1:(Strata.n-1)]
+  w[is.na(g)]<- NA
+  p <- sum(w, na.rm = T) # calculate sum of weight values
+  pp <- w/p # divide weight values by sum to get the proportion to == 1
+  pp <- as.numeric(pp)
+  result <- as.integer(round(sum(pp*g, na.rm = T)))
+  return(result)
 }
 
-Fused.map <- calc(maps, fun = biomass.fusion)
+Fused.map <- calc(maps, fun = biomass.fusion, progress = 'text')
 Fused.map[Fused.map < 0] <- 0
 
 
@@ -1640,7 +1608,7 @@ Fused.final <- raster(paste('./Results/Validation/Fused_Map/FUSED_FINAL_', Strat
 
 #Gal <- raster(paste('./Input_Maps/Gal_1km_', cont, '.tif', sep=""))
 Gal <- raster("./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif")
-Gal <- raster("./Maps/Barredo/barredo_reproj.tif")
+Gal <- raster("./Maps/Barredo/barredo_Alligned.tif")
 Gal[Gal < 0] <- NA
 IIASA <- raster("./Maps/IIASA/1km/bmAg_IIASA2010_Alligned.tif")
 Thur <- raster('./Maps/Thurner/1km/bmAg_Thurner_1km_Alligned.tif')   
