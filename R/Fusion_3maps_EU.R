@@ -4,6 +4,12 @@ if (!require(randomForest)) install.packages('randomForest')
 if (!require(robust)) install.packages('robust')
 #if (!require(ranger)) install.packages('ranger')
 
+# Set parameters
+
+Strata.fn <- 'EU_3'# set file name
+cluster_n <- 3 # set cluster solution
+n_maps <- 3 # set number of input maps
+
 
 ######  INPUT DATA  ##########
 
@@ -11,6 +17,7 @@ if (!require(robust)) install.packages('robust')
 Gal <- raster("./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif")
 Gal <- raster("./Maps/Barredo/barredo_Alligned.tif")
 Gal[Gal < 0] <- NA
+
 
 # cant get Bar en Gal extents to match, fix required
 #Bar <- projectRaster(Bar, Gal, method = 'ngb')
@@ -69,6 +76,8 @@ IIASA.er <- ref - IIASA
 #Gal.er <- Gal
 #Thur.er <- Thur
 
+
+
 error.map <- stack(Gal.er, Thur.er, IIASA.er, hei, vcf, Gal, Thur, IIASA, cci)
 names(error.map) <- c("Gal.er", "Thur.er","IIASA.er", "hei", "vcf", "Gal", "Thur", "IIASA", "cci")
 #rm(cci)
@@ -87,7 +96,7 @@ Thur.rf.f <- formula(Thur.er ~ hei + cci + vcf + Thur + Gal + IIASA)
 IIASA.rf.f <- formula(IIASA.er ~ hei + cci + vcf + Thur + Gal + IIASA)
 #Thur.rf.f <- formula(Thur.er ~ hei + vcf + Gal + Thur + cci)
 set.seed(55)
-system.time(Gal.rf <- randomForest(Gal.rf.f, error, importance=F, mtry=2))
+Gal.rf <- randomForest(Gal.rf.f, error, importance=F, mtry=2)
 set.seed(55)
 Thur.rf <- randomForest(Thur.rf.f, error, importance=F, mtry=2)
 set.seed(55)
@@ -95,7 +104,7 @@ IIASA.rf <- randomForest(IIASA.rf.f, error, importance=F, mtry=2)
 # Gal.rf
 # Thur.rf
 
-rf.out <- matrix(0, nrow=3, ncol=2, dimnames=list(c("Predict_Error_Thurner", "Predict_Error_Gal", "Predict_Error_IIASA"), c("RMSE", "R2")))
+rf.out <- matrix(0, nrow=n.maps, ncol=2, dimnames=list(c("Predict_Error_Thurner", "Predict_Error_Gal", "Predict_Error_IIASA"), c("RMSE", "R2")))
 rf.out[1,1] <- sqrt(Thur.rf$mse[500])
 rf.out[1,2] <- mean(Thur.rf$rsq[500])
 rf.out[2,1] <- sqrt(Gal.rf$mse[500])
@@ -103,8 +112,8 @@ rf.out[2,2] <- mean(Gal.rf$rsq[500])
 rf.out[3,1] <- sqrt(IIASA.rf$mse[500])
 rf.out[3,2] <- mean(IIASA.rf$rsq[500])
 
-png(filename=paste("./Results/Strata/RF_Predict_Errors_VarImpPlot.png", sep=""), width=960, height=480, res=96)
-opar <- par(mfrow=c(1,3))
+png(filename=paste("./Results/Strata/RF_Predict_Errors_VarImpPlot_",Strata.fn,".png", sep=""), width=960, height=480, res=96)
+opar <- par(mfrow=c(1,n.maps))
 varImpPlot(Gal.rf)
 varImpPlot(Thur.rf)
 varImpPlot(IIASA.rf)
@@ -112,11 +121,11 @@ dev.off()
 
 varImp <- cbind(importance(Gal.rf), importance(Thur.rf), importance(IIASA.rf))
 colnames(varImp) <- c('Gal_Imp', 'Thur_Imp', 'IIASA_Imp')
-write.csv(varImp, paste("./Results/Strata/IncNodePur.csv", sep=""))
+write.csv(varImp, paste("./Results/Strata/IncNodePur_",Strata.fn,".csv", sep=""))
 rm(varImp)
 
-png(filename=paste("./Results/Strata/RF_Predict_Errors_CrossVal.png", sep=""), width=960, height=480, res=96)
-opar <- par(mfrow=c(1,3))
+png(filename=paste("./Results/Strata/RF_Predict_Errors_CrossVal_",Strata.fn,".png", sep=""), width=960, height=480, res=96)
+opar <- par(mfrow=c(1,n.maps))
 plot(error$Gal.er,predict(Gal.rf, newdata=error), main="Cross Validation Error Gal", xlab="Error", ylab="Predicted error", xlim=c(min(error$Gal.er), max(error$Gal.er)), ylim=c(min(error$Gal.er),max(error$Gal.er)))
 abline(0,1)
 plot(error$Thur.er,predict(Thur.rf, newdata=error), main="Cross Validation Error Thur", xlab="Error", ylab="Predicted error", xlim=c(min(error$Thur.er), max(error$Thur.er)), ylim=c(min(error$Thur.er),max(error$Thur.er)))
@@ -127,10 +136,10 @@ dev.off()
 
 ### PREDICT MAP ERROR
 
-error.dat <- dropLayer(error.map, 1:3)
-Gal.er <- predict(error.dat, Gal.rf, type= 'response', filename="./Results/Strata/Gal_Error_RF.tif", datatype='INT2S', overwrite=T, progress='text')
-Thur.er <- predict(error.dat, Thur.rf, type= 'response', filename="./Results/Strata/Thur_Error_RF.tif", datatype='INT2S', overwrite=T, progress='text')
-IIASA.er <- predict(error.dat, IIASA.rf, type= 'response', filename="./Results/Strata/IIASA_Error_RF.tif", datatype='INT2S', overwrite=T, progress='text')
+error.dat <- dropLayer(error.map, 1:n.maps)
+Gal.er <- predict(error.dat, Gal.rf, type= 'response', filename=paste0("./Results/Strata/Gal_Error_RF_",Strata.fn,".tif"), datatype='INT2S', overwrite=T, progress='text')
+Thur.er <- predict(error.dat, Thur.rf, type= 'response', filename=paste0("./Results/Strata/Thur_Error_RF_",Strata.fn,".tif"), datatype='INT2S', overwrite=T, progress='text')
+IIASA.er <- predict(error.dat, IIASA.rf, type= 'response', filename=paste0("./Results/Strata/IIASA_Error_RF_",Strata.fn,".tif"), datatype='INT2S', overwrite=T, progress='text')
 
 #rm(error.map)
 
@@ -142,7 +151,9 @@ mydata.k <- mydata[complete.cases(mydata),]  # Remove NA, K-means cannot handle 
 
 # K cluser
 set.seed(55)
-fit.k <- kmeans(mydata.k, 3)      # 8 cluster solution
+fit.k <- kmeans(mydata.k, cluster_n)      
+Strata.s <- cluster_n 
+
 
 # Convert to raster
 mydata$cluster <- NA
@@ -183,7 +194,7 @@ varImpPlot(str.rf)
 
 rf.out[2,1] <- 1-sum(diag(table(predict(str.rf), str.rf$y)))/sum(table(predict(str.rf), str.rf$y))
 rf.out[2,2] <- NA
-write.csv(rf.out, paste("./Results/Strata/RF_Predict_Errors_EU.csv", sep=""))
+write.csv(rf.out, paste("./Results/Strata/RF_Predict_Errors_",Strata.fn,".csv", sep=""))
 #rm(rf.out)
 #rm(dat)
 
@@ -201,7 +212,7 @@ strata.f <- function(x) {
   x[i,1] <- x[i,2]
   return(x[,1])
 }
-Strata.fn <- 'EU'
+
 Strata <- calc(strata, fun=strata.f, filename=paste("./Results/Strata/Strata_", Strata.fn, ".tif", sep=""), datatype='INT1U', overwrite=T, progress='text')
 names(Strata) <- paste("Strata_", Strata.fn, sep="")
 rm(list=ls(pattern='str.'))
@@ -221,8 +232,7 @@ Strata <- raster(paste("./Results/Strata/Strata_", Strata.fn, ".tif", sep=""))
 
 ########  CONSOLIDATE REFERENCE DATA #####  START HERE FOR STRATA AS GLC2000 OR VCF10
 # Strata <- raster(paste("./Results/Strata/Strata_", Strata.fn, ".tif", sep=""))
-
-Strata.s <- 3    
+  
 Strata.names <- 1:Strata.s
 
 ## Each NFI has a unique code, and there is a raster map where each plot of the NFI has the code value (e.g.: all plots in Spain have value 1, in France is 2, etc.)
@@ -276,7 +286,6 @@ print(str.code.x, digits = 0)
 
 # Plotting Ref data by Strata
 
-Strata.fn <- 'EU' 
 png(filename=paste("./Results/Reference/Reference_Data_", Strata.fn, "_Orig.png", sep=""))
 plt <- barplot(str.code, beside=F, main=paste("Reference Data by ", Strata.fn, " strata - original", sep=""), xlab="Strata", legend = code.names, names.arg = Strata.names,
                cex.names = 0.7, col=c("red", "orange", "yellow", "green", "blue", "violet", "pink" , "cyan", "gray", "forestgreen", "orange3"), args.legend = list(x = "topright", cex=0.7))
@@ -323,7 +332,7 @@ error$Strata <- as.factor(error$Strata)
 
 # Plot Errors of IIASA and Thurner
 
-png(filename="./Results/Reference/Errors of IIASA_Thur.png") # Add Gal map and create 3 combi maps
+png(filename="./Results/Reference/Errors of IIASA_Thur_",Strata.fn,".png") # Add Gal map and create 3 combi maps
 plot(error$IIASA_er, error$Thur_er, main=paste("Errors of input maps"), xlab="IIASA Error", ylab="Thur Error", xlim=c(min(error$IIASA_er, error$Thur_er), max(error$IIASA_er, error$Thur_er)), ylim=c(min(error$Thur_er, error$IIASA_er), max(error$Thur_er, error$IIASA_er)))
 abline(0,1)
 dev.off()
@@ -341,12 +350,12 @@ rm(list=ls(pattern=".bias"))
 
 ### Calculate variance-covariance matrix and weight matrix using a ROBUST ESTIMATOR
 
-X <- c(1,1,1)                      ##! adapt if more than 2 input maps. with 3 maps it should be X <- c(1,1,1)
-
+X <- rep.int(1,n.maps) ##! adapt if more than 2 input maps. with 3 maps it should be X <- c(1,1,1)
+                     
 # !! Wont Run because Gal dataset has a mean error of 0, due to the reference dataset being used in the map creation  !! 
 cov <- vector('list',length = Strata.s)
 for (i in 1:Strata.s){
-  cov[[i]] <- covRob(error[error$Strata==i,2:4]) # set length (-:-) to the selected datasets
+  cov[[i]] <- covRob(error[error$Strata==i,2:ncol(error)]) # set length (-:-) to the selected datasets
   cov[[i]] <- cov[[i]]$cov}
 
 w <- vector('list',length = Strata.s)
@@ -412,10 +421,10 @@ colnames(fus.par) <- c("Strata", "N")
 fus.par$Strata <- as.numeric(as.character(fus.par$Strata))
 fus.par <- cbind(fus.par, bias, weight, err.var[,-1])   # adjust the number of classes
 #fus.par[9,] <- c(9, 0, 0, 0, 0.5, 0.5, rep(0,8))
-fus.par[Strata.s+1,] <- c(Strata.s+1, 0, 0, 0, 0, 0.5, 0.5, 0.5, rep(0,10)) 
-# Should weights be set according to the number of input maps? e.g. 3 maps == weight 0.33? check this
-bias <- fus.par[,3:5]                             # Add Strata 9 to bias and weight (for Fusion)
-weight <- fus.par[,6:8]
+weight_fill <- 1/n.maps
+fus.par[Strata.s+1,] <- c(Strata.s+1, 0, rep(0,n.maps), rep(weight_fill,n.maps), rep(0,((n.maps*2)+4))) # Should weights be set according to the number of input maps? e.g. 3 maps == weight 0.33? check this
+bias <- fus.par[,3:(n.maps+2)]                             # Add Strata 9 to bias and weight (for Fusion)
+weight <- fus.par[,(3+n.maps):(2+(n.maps*2))]
 dir.create("./Results/Fused_Map", showWarnings = F)
 write.csv(fus.par, paste("./Results/Fused_Map/Bias_Weights_", Strata.fn, ".csv", sep=""), row.names = FALSE)
 
@@ -539,13 +548,15 @@ maps <- stack(Gal, Thur, IIASA, Strata)
 #   return(result)
 # }
 
+n.maps <- nlayers(maps)
+  
 # working function. but very slow!
 biomass.fusion <- function(x) {
-  m <- matrix(x, nrow= 1, ncol=4)
-  n <- m[,4]
-  g <- m[1:(Strata.n-1)] + as.matrix(bias[n,])
+  m <- matrix(x, nrow= 1, ncol=n.maps)
+  n <- m[,n.maps]
+  g <- m[1:(n.maps-1)] + as.matrix(bias[n,])
   g[g < 0] <- 0
-  w <- weight[n,1:(Strata.n-1)]
+  w <- weight[n,1:(n.maps-1)]
   w[is.na(g)]<- NA
   p <- sum(w, na.rm = T) # calculate sum of weight values
   pp <- w/p # divide weight values by sum to get the proportion to == 1
@@ -577,7 +588,7 @@ system.time(Fused.map <- calc(maps, fun = biomass.fusion, progress = 'text'))
 
 
 Fused.map[Fused.map < 0] <- 0
-Fused.map[Strata == 4] <- NA
+Fused.map[Strata == Strata.n] <- NA
 
 #### for EUROPE: this section until line 690 aims to fill the NA in the fused map. the NA are due to a input biomass map with NA.
 ## another fused map is created using only the biomass map(s) with values, and then this additional map is mosaicked to the original fused map (of line 600)
@@ -698,7 +709,7 @@ writeRaster(Fused.map, filename = paste("Results/Fused_Map/Mosaic/Fused.map_", S
 # plot(Fused.map)
 # 
 # Fused.final <- merge(Fused.map, Gal.bias.adj)
-writeRaster(Fused.map, "./Results/Fused_Map/Fused_Final.tif", overwrite = T)
+#writeRaster(Fused.map, paste0("./Results/Fused_Map/Fused_Final_",Strata.fn,".tif"), overwrite = T)
 
 ##################################################################################
 ##############################   MODEL RESULTS   #################################
@@ -716,7 +727,7 @@ writeRaster(Fused.map, "./Results/Fused_Map/Fused_Final.tif", overwrite = T)
 Strata <- raster(paste("./Results/Strata/Strata_", Strata.fn, ".tif", sep=""))
 ref <- raster('./Maps/Ref/ref_ras_EU2.tif')
 ref <- crop(ref, Gal)
-Fused.final <- raster(paste('Results/Fused_Map/Mosaic/Fused.map_final_EU.tif', sep=""))
+Fused.final <- raster(paste('Results/Fused_Map/Mosaic/Fused.map_',Strata.fn,'.tif', sep=""))
 
 fus.par <- read.csv(paste("./Results/Fused_Map/Bias_Weights_", Strata.fn, ".csv", sep=""))
 
@@ -724,7 +735,7 @@ dat.r <- stack(Gal, IIASA, Thur, Fused.final, ref, Strata)
 dat <- as.data.frame(as.matrix(dat.r, na.rm = TRUE))
 dat <- dat[complete.cases(dat),]
 colnames(dat) <- c("Gal", "IIASA","Thur", "Fused", "Ref", "Strata")
-dat$Mean <- (dat$Gal + dat$IIASA + dat$Thur) / 3
+dat$Mean <- (dat$Gal + dat$IIASA + dat$Thur) / n.maps
 rm(dat.r)
 
 
@@ -745,7 +756,7 @@ for (i in 1:Strata.s) {
   smse[i] <- mean((err.str/err.sd[i])^2)
 }
 
-err.all <- t(rbind(bias.m[-5:-6], rmse.m[-5:-6]))
+err.all <- t(rbind(bias.m[-(n.maps+2):-(n.maps+3)], rmse.m[-(n.maps+2):-(n.maps+3)]))
 n.plot <- nrow(err)
 smse <- mean(smse)                     # simple Mean SMSE (not area-weighted)
 err.all <- rbind(err.all, n.plot, smse)
@@ -862,7 +873,7 @@ Thur_Sin[Water_Sin == 2] <- NA
 
 
 
-pix.area <- res(Gal_Sin)[1]
+pix.area <- res(Gal_Sin)[1]++++++++++++++++++++++++++++++++++++++
 all.map <- stack(Gal_Sin, IIASA_Sin, Thur_Sin, Fused.final, Strata)
 
 all.dat <- as.data.frame(as.matrix(all.map, na.rm = TRUE))
@@ -874,7 +885,6 @@ rm(list=c('all.map', 'bac', 'in.fn', 'out.fn', 'out.ext', 'proj.py', 'saa.ext', 
 
 
 # MEAN AGB
-Strata.s <- 3 
 Strata.names <- 1:Strata.s
 
 agb.mean.s <- aggregate(all.dat$Gal, by = list(all.dat$Strata), FUN="mean")
@@ -1132,7 +1142,7 @@ mydata.k <- mydata[complete.cases(mydata),]  # Remove NA, K-means cannot handle 
 
 # K cluser
 set.seed(55)
-fit.k <- kmeans(mydata.k, 3)      # 8 cluster solution
+fit.k <- kmeans(mydata.k, cluster_n)      # 8 cluster solution
 
 # Convert to raster
 mydata$cluster <- NA
@@ -1186,7 +1196,7 @@ strata.f <- function(x) {
   x[i,1] <- x[i,2]
   return(x[,1])
 }
-Strata.fn <- 'EU'
+
 Strata <- calc(strata, fun=strata.f, filename=paste("./Results/Validation/Strata/Strata_", Strata.fn, ".tif", sep=""), datatype='INT1U', overwrite=T, progress='text')
 names(Strata) <- paste("Strata_", Strata.fn, sep="")
 rm(list=ls(pattern='str.'))
@@ -1202,7 +1212,6 @@ Sys.time()
 ########  CONSOLIDATE REFERENCE DATA #####  START HERE FOR STRATA AS GLC2000 OR VCF10
 # Strata <- raster(paste("./Results/Strata/Strata_", Strata.fn, ".tif", sep=""))
 
-Strata.s <- 3    
 Strata.names <- 1:Strata.s
 
 ## Each NFI has a unique code, and there is a raster map where each plot of the NFI has the code value (e.g.: all plots in Spain have value 1, in France is 2, etc.)
@@ -1269,7 +1278,7 @@ print(str.code.x, digits = 0)
 
 # Plotting Ref data by Strata
 
-Strata.fn <- 'EU' 
+
 png(filename=paste("./Results/Validation/Reference/Reference_Data_", Strata.fn, "_Orig.png", sep=""))
 plt <- barplot(str.code, beside=F, main=paste("Reference Data by ", Strata.fn, " strata - original", sep=""), xlab="Strata", legend = code.names, names.arg = Strata.names,
                cex.names = 0.7, col=c("red", "orange", "yellow", "green", "blue", "violet", "pink" , "cyan", "gray", "forestgreen", "orange3"), args.legend = list(x = "topright", cex=0.7))
@@ -1461,7 +1470,7 @@ error$Strata <- as.factor(error$Strata)
 
 # Plot Errors of IIASA and Thurner
 
-png(filename="./Results/Validation/Reference/Errors of IIASA_Thur.png")
+png(filename= paste0("./Results/Validation/Reference/Errors of IIASA_Thur_", Strata.fn, ".png"))
 plot(error$IIASA_er, error$Thur_er, main=paste("Errors of input maps"), xlab="IIASA Error", ylab="Thur Error", xlim=c(min(error$IIASA_er, error$Thur_er), max(error$IIASA_er, error$Thur_er)), ylim=c(min(error$Thur_er, error$IIASA_er), max(error$Thur_er, error$IIASA_er)))
 abline(0,1)
 dev.off()
@@ -1569,14 +1578,15 @@ Strata[is.na(Strata)] <- Strata.n
 ###  FUSION                          
 # Double check, if 3 maps are used and 1 of them contains NA, the outcome will be NA. Adjusted to ignore NA?
 maps <- stack(Gal, Thur, IIASA, Strata)
+n.maps <- nlayers(maps)
 
 # the 'Strata.n' represents the number of stacked layers
 biomass.fusion <- function(x) {
-  m <- matrix(x, nrow= 1, ncol=4)
-  n <- m[,4]
-  g <- m[1:(Strata.n-1)] + as.matrix(bias[n,])
+  m <- matrix(x, nrow= 1, ncol=n.maps)
+  n <- m[,n.maps]
+  g <- m[1:(n.maps-1)] + as.matrix(bias[n,])
   g[g < 0] <- 0
-  w <- weight[n,1:(Strata.n-1)]
+  w <- weight[n,1:(n.maps-1)]
   w[is.na(g)]<- NA
   p <- sum(w, na.rm = T) # calculate sum of weight values
   pp <- w/p # divide weight values by sum to get the proportion to == 1
@@ -1625,6 +1635,11 @@ colnames(dat) <- c("Gal", "IIASA","Thur", "Fused", "Ref", "Strata")
 dat$Mean <- (dat$Gal + dat$IIASA + dat$Thur) / 3
 rm(dat.r)
 
+#test R2
+fusion.lm = lm(dat$Fused ~ dat$Ref, data=dat)
+Gal.lm = lm(dat$Gal ~ dat$Ref, data=dat)
+IIASA.lm = lm(dat$IIASA ~ dat$Ref, data=dat)
+Thur.lm = lm(dat$Thur~ dat$Ref, data=dat)
 
 # Bias, RMSE and SMSE (as Simple Average)
 
