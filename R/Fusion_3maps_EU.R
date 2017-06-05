@@ -32,6 +32,7 @@ Thur <- raster('./Maps/Thurner/1km/bmAg_Thurner_1km_Alligned.tif')
 #Thur <- crop(Thur, Gal)
 #ref <- raster(paste('./Reference/Ref_', cont, '.tif', sep=""))
 ref <- raster('./Maps/Ref/ref_ras_EU2.tif')
+ref <- raster('./Maps/Ref/ref_ras_EU5.tif')
 
 #vcf <- raster("./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic.tif")
 #align_rasters("./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic.tif", "./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif", dstfile = "./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic_C.tif")
@@ -531,23 +532,57 @@ maps <- stack(Gal, Thur, IIASA, Strata)
 # 
 # 
 # 
-# 
-# #old
-# biomass.fusion <- function(x) {
-#   result <- matrix(NA, dim(x)[1], 1)
-#   for (n in 1:Strata.n) {
-#     ok <- !is.na(x[,4]) &  x[,4] == n
-#     g <- x[1:3] + as.matrix(bias[n,])
-#     g <- x[ok,1:3] + as.matrix(bias[n,])
-#     a <- x[ok,1] + bias[n,1]              # for these pixels, take the values of map 1 and add the bias (output is a subset with only values for this Stratum)
-#     b <- x[ok,2] + bias[n,2]
-#     c <- x[ok,3] + bias[n,3]
-#     result[ok] <- g[1] * weight[n,1] + g[2] * weight[n,2] + g[3] * weight[n,3]  # compute fused biomass for the pixels belonging to this Stratum
-#     #result[ok] <- a * weight[n,1] + b * weight[n,2] + c * weight[n,3]  # compute fused biomass for the pixels belonging to this Stratum
-#   }
-#   return(result)
-# }
 
+#old
+biomass.fusion <- function(x) {
+  result <- matrix(NA, dim(x)[1], 1)
+  for (n in 1:Strata.n) {
+    ok <- !is.na(x[,4]) &  x[,4] == n
+    g <- x[1:3] + as.matrix(bias[n,])
+    g <- x[ok,1:3] + as.matrix(bias[n,])
+    a <- x[ok,1] + bias[n,1]              # for these pixels, take the values of map 1 and add the bias (output is a subset with only values for this Stratum)
+    b <- x[ok,2] + bias[n,2]
+    c <- x[ok,3] + bias[n,3]
+    result[ok] <- g[1] * weight[n,1] + g[2] * weight[n,2] + g[3] * weight[n,3]  # compute fused biomass for the pixels belonging to this Stratum
+    #result[ok] <- a * weight[n,1] + b * weight[n,2] + c * weight[n,3]  # compute fused biomass for the pixels belonging to this Stratum
+  }
+  return(result)
+}
+
+#old
+biomass.fusion2 <- function(x) {
+  result <- matrix(NA, dim(x)[1], 1)
+  for (n in 1:Strata.n) {
+    ok <- !is.na(x[,4]) &  x[,4] == n
+    a <- x[ok,1] + bias[n,1]              # for these pixels, take the values of map 1 and add the bias (output is a subset with only values for this Stratum)
+    b <- x[ok,2] + bias[n,2]
+    c <- x[ok,3] + bias[n,3]
+    
+    a[ok][a[ok] < 0] <- 0
+    b[ok][b[ok] < 0] <- 0
+    c[ok][c[ok] < 0] <- 0
+    
+    g <- cbind(weight[n,1],weight[n,2],weight[n,3])
+    g[is.na(x[ok])] <- 0
+    p <- sum(g, na.rm = T) # calculate sum of weight values
+    pp <- g/p # divide weight values by sum to get the proportion to == 1
+    
+    a[ok][is.na(a[ok])] <- 0
+    b[ok][is.na(b[ok])] <- 0
+    c[ok][is.na(c[ok])] <- 0
+    
+    result[ok] <- round(a * pp[1]) + round(b * pp[2]) + round(c * pp[3])  # compute fused biomass for the pixels belonging to this Stratum
+    
+    #result[ok] <- a * weight[n,1] + b * weight[n,2] + c * weight[n,3]  # compute fused biomass for the pixels belonging to this Stratum
+  }
+  return(result)
+}
+system.time(Fused.map1 <- calc(maps, fun = biomass.fusion2, progress = 'text'))
+writeRaster(Fused.map1, filename = paste("Results/Fused_Map/Mosaic/Fused.map_", Strata.fn, ".tif", sep=""), datatype='INT1U', overwrite=T) # datatype = FLT4S
+
+
+
+x <- x2
 n.maps <- nlayers(maps)
   
 # working function. but very slow!
@@ -585,6 +620,7 @@ maps1 <- crop(maps,e)
 
 
 system.time(Fused.map <- calc(maps, fun = biomass.fusion, progress = 'text'))
+writeRaster(Fused.map, filename = paste("Results/Fused_Map/Mosaic/Fused.map_", Strata.fn, "2.tif", sep=""), datatype='INT1U', overwrite=T) # datatype = FLT4S
 
 
 Fused.map[Fused.map < 0] <- 0
@@ -1615,7 +1651,7 @@ rm(list=c("Fused.map", "maps"))
 ##################################################################################
 
 Fused.final <- raster(paste('./Results/Validation/Fused_Map/FUSED_FINAL_', Strata.fn, '.tif', sep=''))
-
+Strata.fn <- "EU"
 #Gal <- raster(paste('./Input_Maps/Gal_1km_', cont, '.tif', sep=""))
 Gal <- raster("./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif")
 Gal <- raster("./Maps/Barredo/barredo_Alligned.tif")
@@ -1629,6 +1665,7 @@ Strata <- raster(paste("./Results/Validation/Strata/Strata_", Strata.fn, ".tif",
 ref <- raster(paste("./Results/Validation/Reference/Ref_", Strata.fn, "_Val.tif", sep=""))    
 
 dat.r <- stack(Gal, IIASA, Thur, Fused.final, ref, Strata)
+#dat.r <- mask(dat.r, CountryShape)
 dat <- as.data.frame(as.matrix(dat.r, na.rm = TRUE))
 dat <- dat[complete.cases(dat),]
 colnames(dat) <- c("Gal", "IIASA","Thur", "Fused", "Ref", "Strata")
@@ -1641,6 +1678,10 @@ Gal.lm = lm(dat$Gal ~ dat$Ref, data=dat)
 IIASA.lm = lm(dat$IIASA ~ dat$Ref, data=dat)
 Thur.lm = lm(dat$Thur~ dat$Ref, data=dat)
 
+summary(fusion.lm)
+summary(Gal.lm )
+summary(IIASA.lm)
+summary(Thur.lm)
 # Bias, RMSE and SMSE (as Simple Average)
 
 err <- dat - dat$Ref        # compute error for all maps

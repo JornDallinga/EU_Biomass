@@ -46,6 +46,7 @@ rm(list=ls(pattern='shape'))
 
 # rasterize country ID's to create a raster grid with country codes
 ras <- raster('./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif')
+#ras <- raster('./Maps/Barredo/barredo_Alligned.tif')
 
 ## create NA raster to fill with values later
 ras_NA <- ras
@@ -60,10 +61,11 @@ code.n <- maxValue(codes)
 # -------------------------------------------------------------------------------------------------------------- #
 
 
+
 # Read biomass points
-BufferWGS <- dat
+#BufferWGS <- dat
 # set plot year threshold
-year <- 2000
+#year <- 2000
 
 # Set year values based on threshold to NA
 #BufferWGS[BufferWGS$YEAR < year ,] <- NA
@@ -78,51 +80,26 @@ Country  <- readOGR(dsn = "./data/Boundaries/Europe", layer = "Europe_in_Gal")
 
 
 # Exctract cell values, but keep it as a dataframe
-o <- extract(ras, BufferWGS, method = 'simple', cellnumbers = T, sp = T) 
-head(o)
+#df <- extract(ras, BufferWGS, method = 'simple', cellnumbers = T, sp = T) 
+#head(df)
 
-# Unique
-#duplicated(o$cells)
-
-# subset unique
-n_occur <- data.frame(table(o$cells))
-#n_occur[n_occur$Freq > 1,]
-df <- o[o$cells %in% n_occur$Var1[n_occur$Freq > 1],]
-
-
-# replace spatial points AGB values with mean AGB values
-lis <- unique(df$cells)
-for (i in 1:length(lis)){
-  df_sel <- df[df$cells == lis[i], ]
-  df_sel$AGB <- mean(df_sel$AGB) # calc mean value of AGB values
-  df_mean <- df_sel[1,] # select 1 spatial point out of multiple. Does not matter which one, since they all overlap the same pixel. Here we select the first
-  df_2 <- df[!df$cells %in% df_sel$cells,]
-  df <- rbind(df_2, df_mean)
-}
-
-# delete duplicates from dataframe
-df_del <- o[!o$cells %in% df$cells,]
-
-# merge new mean values with orginal dataframe
-df_final <- rbind(df_del, df)
-
-# check if any duplicates are remaining
-n_occur <- data.frame(table(df_final$cells))
-n_occur[n_occur$Freq > 1,]
 
 # -------------------------------------------------------------------------------------------------------------- #
+#df_final <- df
 
 # crop raster to spatialpointdataframe, improve computation time
-c <- crop(ras, df_final)
+#df_final <- crop(df_final, ras)
 
-# mask to only select pixels/cells that overlap with spatial points
-m <- mask(c, df_final)
+ref_bio <- rasterize(dat, ras_NA, dat$AGB, fun = mean, filename = './Reference/Ref_bio_EU.tif', overwrite = T) 
 
 # raster cells to spatial polygons
-rastopol <- rasterToPolygons(m)
+rastopol <- rasterToPolygons(ref_bio)
+
+# mask to only select pixels/cells that overlap with spatial points
+#m <- mask(c, df_final)
 
 # Union features
-union_points <- gUnaryUnion(rastopol)
+#union_points <- gUnaryUnion(rastopol)
 
 # write to output file for verifying in other software (e.g. ArcGIS)
 writeOGR(union_points, dsn = paste0(getwd(), '/data'), layer = "rastopolygon", driver = "ESRI Shapefile")
@@ -165,111 +142,6 @@ ls2 <- list.files("./data/Hansen_download/", pattern = "treecover2000", full.nam
 # lets test a method that select plots per tile
 list_f <- list.files("./data/Hansen_download/", pattern = "treecover2000", full.names = T, recursive = T)
 
-#------------------------------------------------------------------------------------------------------
-#-------- Applies threshold and SDM function for plots that intersect with a tile ----------
-#------------------------------------------------------------------------------------------------------
-
-# df <- rastopol[0,]
-# for (i in 1:length(list_f)){
-#   lr <- raster(list_f[i])
-#   c <- crop(rastopol, lr)
-#   
-#   for (b in 1:length(c)){
-#     pb <- winProgressBar(title = "progress bar", min = 0,
-#                          max = length(c), width = 300)
-#     Sys.sleep(0.1)
-#     setWinProgressBar(pb, b, title=paste(round(b/length(c)*100, 0),
-#                                          "% done"))
-#     
-#     pol <- crop(lr,c[b,])
-#     pol[pol < Threshold] <- 0 
-#     pol[pol >= Threshold] <- 1
-#     SDM <- SDM_function(pol)
-#     
-#     if (SDM$lanscape.division.index > .15 | is.na(SDM$lanscape.division.index)){
-#       c$bmAg_JR2000_ll_1km_eur[b] <- NA
-#     }
-#     if (b == length(c))
-#       close(pb)
-#   }
-#   cat(" | Tile ", i , " Out of ", length(list_f) , " Done ")
-#   df <- rbind(df, c)
-# }
-
-# 
-# 
-# df <- rastopol[0,]
-# system.time(for (i in 1:length(list_f)){
-#   lr <- raster(list_f[i])
-#   c <- crop(rastopol, lr)
-#   
-#   for (b in 1:length(c)){
-#     pb <- winProgressBar(title = "progress bar", min = 0,
-#                          max = length(c), width = 300)
-#     Sys.sleep(0.1)
-#     setWinProgressBar(pb, b, title=paste(round(b/length(c)*100, 0),
-#                                          "% done"))
-#     
-#     pol <- crop(lr,c[b,])
-#     M <- extract(pol, c[b,], method = 'simple', sp = F, fun = mean, na.rm = T)
-#     SD <- extract(pol, c[b,], method = 'simple', sp = F, fun = sd, na.rm = T)
-# 
-#     if ((SD <= 15 & M >= 50 & c[b,]$bmAg_JR2000_ll_1km_eur > (M / 2)) | (SD <= 15 & M < 50 & c[b,]$bmAg_JR2000_ll_1km_eur < (2 * M)) == F){
-#       c$bmAg_JR2000_ll_1km_eur[b] <- NA
-#     }
-#     #if ( == F){
-#       #c$bmAg_JR2000_ll_1km_eur[b] <- NA
-#     #}
-#     if (b == length(c))
-#       close(pb)
-#   }
-#   cat(" | Tile ", i , " Out of ", length(list_f) , " Done ")
-#   df <- rbind(df, c)
-# })
-# 
-# # delete features with NA values
-# pol_sel1 <- df[!is.na(df$bmAg_JR2000_ll_1km_eur),]
-# 
-# #check unique values to see if you the dataset requires reclassifying. 
-# unique(lr)
-# 
-# # create dataframe to write final results
-# df2 <- rastopol[0,]
-# 
-# system.time(for (i in 1:length(list_f)){
-#   
-#   pb <- winProgressBar(title = "progress bar", min = 0,
-#                        max = length(list_f), width = 300)
-#   Sys.sleep(0.1)
-#   setWinProgressBar(pb, i, title=paste(round(i/length(list_f)*100, 0),
-#                                        "% done"))
-#   
-#   lr <- raster(list_f[i])
-#   c <- crop(rastopol, lr)
-#   
-#   print(paste0(" | Tile ", i , " Out of ", length(list_f) , ": calculating mean "))
-#   gs <- extract(lr, c, method = 'simple', sp = T, fun = sd, na.rm = T, progress = 'text')
-#   names(gs)[2] <- "SD"
-#   print(paste0(" | Tile ", i , " Out of ", length(list_f) , ": calculating SD "))
-#   gm <- extract(lr, gs, method = 'simple', sp = T, fun = mean, na.rm = T, progress = 'text')
-#   names(gm)[3] <- "Mean"
-#   
-#   if (i == length(list_f)) {
-#     close(pb)
-#   }
-#   
-#   cat(" | Tile ", i , " Out of ", length(list_f) , " Done ")
-#   df2 <- rbind(df2, gm)
-# })
-# 
-# # select plot on homogeneous criteria
-# plot.sel <- rbind(df2[df2$SD <= 15 & df2$Mean >= 50 & df2$bmAg_JR2000_ll_1km_eur > (df2$Mean / 2), ], df2[df2$SD <= 15 & df2$Mean < 50 & df2$bmAg_JR2000_ll_1km_eur < (2 * df2$Mean), ])
-# 
-# # delete features with NA values
-# pol_sel <- df[!is.na(df$bmAg_JR2000_ll_1km_eur),]
-# 
-# # safe output 
-# writeOGR(pol_sel, dsn = paste0(getwd(), '/data/Output'), layer = "pol_sel_EU", driver = "ESRI Shapefile")
 
 #------------- testing large scale extraction. Fastest method so far.------------------------------#
 
@@ -277,6 +149,7 @@ list_f <- list.files("./data/Hansen_download/", pattern = "treecover2000", full.
 list_f <- list.files("./data/Hansen_download/", pattern = "treecover2000", full.names = T, recursive = T)
 
 # create dataframe to write final results
+#rastopol <- df_final[-4]
 df3 <- rastopol[0,]
 detectCores()
 beginCluster( detectCores() -1) #use all but one core
@@ -296,7 +169,8 @@ system.time(for (i in 1:length(list_f)){
   
   print(paste0(" | Tile ", i , " Out of ", length(list_f) , ": extracting raster values of ", length(c), " features "))
   
-  lr_ex <- extract(lr,c, na.rm = T, progress = 'text')
+
+  lr_ex <- extract(x = lr,y = c, na.rm = T, progress = 'text')
   
   print(paste0(" | Tile ", i , " Out of ", length(list_f) , ": calculating mean and sd "))
   
@@ -310,8 +184,8 @@ system.time(for (i in 1:length(list_f)){
     close(pb)
     endCluster()
     print("Writing output to disk...")
-    plot.sel3 <- rbind(df3[df3$SD <= 15 & df3$Mean >= 50 & df3$bmAg_JR2000_ll_1km_eur > (df3$Mean / 2), ], df3[df3$SD <= 15 & df3$Mean < 50 & df3$bmAg_JR2000_ll_1km_eur < (2 * df3$Mean), ])
-    writeOGR(plot.sel3, dsn = paste0(getwd(), '/data/Output'), layer = "pol_sel_EU2", driver = "ESRI Shapefile")
+    plot.sel3 <- rbind(df3[df3$SD <= 15 & df3$Mean >= 50 & df3$Ref_bio_EU > (df3$Mean / 2), ], df3[df3$SD <= 15 & df3$Mean < 50 & df3$Ref_bio_EU < (2 * df3$Mean), ])
+    writeOGR(plot.sel3, dsn = paste0(getwd(), '/data/Output'), layer = "pol_sel_EU_final", driver = "ESRI Shapefile")
     
   }
   print(paste0(" | Tile ", i , " Out of ", length(list_f) , " Done "))
@@ -397,11 +271,10 @@ system.time(for (i in 1:length(list_f)){
 # -------------------------------------------------------------------------------------------------------------- #
 
 # Read biomass polygons
-ref_pol <- readOGR(dsn = "./data/Output", layer = "pol_sel_EU2")
+ref_pol <- readOGR(dsn = "./data/Output", layer = "pol_sel_EU_final")
+
 # Rasterize points 
-# The whole upper section of this script can be simplified by running the rasterize function,
-# instead of keep working with spatialpointsdataframes
-rasterize(ref_pol, ras, ref_pol$bA_JR20, fun=mean, filename = './Maps/Ref/ref_ras_EU2.tif') 
+rasterize(ref_pol, ras, ref_pol$Ref_bio_EU, fun=mean, filename = './Maps/Ref/ref_ras_EU_final.tif', progress = 'text', overwrite = T) 
 
 # select intersecting points from rasterized polygons
 #ref_data <- crop(df_final, ref_pol)
@@ -410,7 +283,7 @@ rasterize(ref_pol, ras, ref_pol$bA_JR20, fun=mean, filename = './Maps/Ref/ref_ra
 #rm(ref_pol, df, df_2, df_del, df_final, df_mean, df_sel, i, lis, n_occur)
 
 # -------------------------------------------------------------------------------------------------------------- #
-
-
+test <- raster('./Maps/Ref/ref_ras_EU_final.tif')
+plot(test)
 #ref_data <- readOGR(dsn = "./data", layer = "ref_data")
 #rasterize(ref_data, ras, ref_data$bA_JR20, fun=mean, filename = './Maps/Ref/ref_ras_EU.tif') 

@@ -31,6 +31,8 @@ rasterOptions(tmpdir = "S:/R_Projects/temp_R")
 
 
 
+
+
 # Read biomass points
 shape <- readOGR(dsn = "./Ref_datasets/", layer = "Netherlands_NFI")
 # Transform coordinate system
@@ -308,7 +310,7 @@ for (i in 1:length(fls)){
 
 #####################################################################################################
 #####################################################################################################
-# alligning rasters to the same extent (only if pixels = the same size and same coordinate system amonst rasters)
+# alligning rasters to the same extent (only if pixels = the same size and same coordinate system amongst rasters)
 
 align_rasters(unaligned = "./Maps/IIASA/1km/bmAg_IIASA2010.tif", reference = "./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif",dstfile = "./Maps/IIASA/1km/bmAg_IIASA2010_Alligned.tif", overwrite = T, r = 'near')
 align_rasters(unaligned = './Maps/Thurner/1km/bmAg_Thurner_1km.tif', reference = "./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif",dstfile = './Maps/Thurner/1km/bmAg_Thurner_1km_Alligned.tif', overwrite = T, r = 'near')
