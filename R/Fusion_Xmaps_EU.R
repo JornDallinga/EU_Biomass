@@ -28,7 +28,7 @@ IIASA <- raster("./Maps/IIASA/1km/bmAg_IIASA2010_Alligned.tif")
 Thur <- raster('./Maps/Thurner/1km/bmAg_Thurner_1km_Alligned.tif')  
 #Thur <- crop(Thur, Gal)
 #ref <- raster(paste('./Reference/Ref_', cont, '.tif', sep=""))
-ref <- raster('./Maps/Ref/ref_ras_EU2.tif')
+ref <- raster('./Maps/Ref/ref_ras_EU_final.tif')
 
 #vcf <- raster("./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic.tif")
 #align_rasters("./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic.tif", "./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif", dstfile = "./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic_C.tif")
@@ -66,9 +66,9 @@ IIASA[water == 2] <- NA
 Strata.fn <- 'EU_3'# set file name
 cluster_n <- 3 # set cluster solution or strata
 n_maps <- 4 # set number of input maps
-map_names <- c("Map_1", "Map_2","Map_3", "Map_4")
+#map_names <- c("Map_1", "Map_2","Map_3", "Map_4")
 cov_names <- c("hei", "vcf", "cci")
-Covariates <- stack(Gal, Gal_2, Thur, IIASA, hei, vcf, cci)
+Covariates <- stack(hei, vcf, cci)
 
 #c <- resample(x = Gal, Thur)
 
@@ -77,20 +77,23 @@ Covariates <- stack(Gal, Gal_2, Thur, IIASA, hei, vcf, cci)
 ##################################################################################
 ls <- list.files("./Maps/all_maps/", pattern = ".tif$", full.names = T)
 
-ls <- stack(Gal, Gal_2, Thur, IIASA)
+# ls <- stack(Gal, Gal_2, Thur, IIASA)
 
 e_ls <- list()
 for (i in 1:n_maps){
-   map <- ref - ls[[i]]
+   map <- ref - raster(ls[[i]])
    #map <- ref - raster(ls[i]) # for lists
    names(map) <- paste0("Map",i,"_er")
    e_ls[[i]] <- map
 }
 
 error.map <- stack(e_ls)
+error.map[water == 2] <- NA
 
+names(error.map) <- names(stack(e_ls))
 name_layers <- names(error.map)
-names(Covariates) <- c(map_names,cov_names)
+
+names(Covariates) <- c(cov_names)
 error.map  <- stack(error.map, Covariates)
 
 #error.map <- stack(Gal.er, Thur.er, IIASA.er, hei, vcf, Gal, Thur, IIASA, cci)
@@ -111,25 +114,21 @@ for (i in 1:length(n.maps)){
   Gal.rf.f <- as.formula(paste("e_ls[[1]] ~ ", paste(xnam, collapse= "+")))
 }
 
-Map1_er <- e_ls[[1]] 
-Map2_er <- e_ls[[2]] 
-Map3_er <- e_ls[[3]] 
-Map4_er <- e_ls[[3]] 
+Map1_er <- error.map$Map1_er
+Map2_er <- error.map$Map2_er
+Map3_er <- error.map$Map3_er
+Map4_er <- error.map$Map4_er
 
-Map_1 <- Covariates[[1]]
-Map_2 <- Covariates[[2]]
-Map_3 <- Covariates[[3]]
-Map_4 <- Covariates[[4]]
-hei <- Covariates[[5]]
-vcf <- Covariates[[6]]
-cci <- Covariates[[7]]
+hei <- Covariates[[1]]
+vcf <- Covariates[[2]]
+cci <- Covariates[[3]]
 
-Gal.rf.f <- formula(Map1_er  ~ Map_1 + Map_2 + Map_3 + Map_4 + hei + vcf + cci)
-Gal_2.rf.f <- formula(Map2_er  ~ Map_1 + Map_2 + Map_3 + Map_4 + hei + vcf + cci)
-Thur.rf.f <- formula(Map3_er  ~ Map_1 + Map_2 + Map_3 + Map_4 + hei + vcf + cci)
-IIASA.rf.f <- formula(Map4_er  ~ Map_1 + Map_2 + Map_3 + Map_4 + hei + vcf + cci)
+Bar.rf.f <- formula(Map1_er  ~ Map1_er + Map2_er + Map3_er + Map4_er + hei + vcf + cci)
+IIASA.rf.f <- formula(Map2_er  ~ Map1_er + Map2_er + Map3_er + Map4_er + hei + vcf + cci)
+Gal.rf.f <- formula(Map3_er  ~ Map1_er + Map2_er + Map3_er + Map4_er + hei + vcf + cci)
+Thur.rf.f <- formula(Map4_er  ~ Map1_er + Map2_er + Map3_er + Map4_er + hei + vcf + cci)
 
-rf_models <- c(Gal.rf.f, Gal_2.rf.f,Thur.rf.f,IIASA.rf.f )
+rf_models <- c(Bar.rf.f, IIASA.rf.f,Gal.rf.f,Thur.rf.f)
 
 dir.create("./Results/RF_Models", showWarnings = F)
 for (i in 1:length(ls)){

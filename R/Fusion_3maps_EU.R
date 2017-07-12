@@ -6,23 +6,21 @@ if (!require(robust)) install.packages('robust')
 
 # Set parameters
 
-Strata.fn <- 'EU_3'# set file name
-cluster_n <- 3 # set cluster solution
+name.fn <- 'EU'# set file name
+cluster_n <- 8 # set cluster solution
+Strata.s <- cluster_n
+Strata.fn <- paste0(name.fn,"_", cluster_n)
 n_maps <- 3 # set number of input maps
+n.maps <- 3 # set number of input maps
 
 
 ######  INPUT DATA  ##########
 
-#Gal <- raster(paste('./Input_Maps/Gal_1km_', cont, '.tif', sep=""))
+
 Gal <- raster("./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif")
-Gal <- raster("./Maps/Barredo/barredo_Alligned.tif")
-Gal[Gal < 0] <- NA
+#Gal <- raster("./Maps/Barredo/barredo_Alligned.tif")
+#Gal[Gal < 0] <- NA
 
-
-# cant get Bar en Gal extents to match, fix required
-#Bar <- projectRaster(Bar, Gal, method = 'ngb')
-#writeRaster(Bar, filename = "./Maps/Barredo/barredo_reproj.tif")
-#
 
 #-------
 IIASA <- raster("./Maps/IIASA/1km/bmAg_IIASA2010_Alligned.tif")
@@ -31,8 +29,10 @@ IIASA <- raster("./Maps/IIASA/1km/bmAg_IIASA2010_Alligned.tif")
 Thur <- raster('./Maps/Thurner/1km/bmAg_Thurner_1km_Alligned.tif')  
 #Thur <- crop(Thur, Gal)
 #ref <- raster(paste('./Reference/Ref_', cont, '.tif', sep=""))
-ref <- raster('./Maps/Ref/ref_ras_EU2.tif')
-ref <- raster('./Maps/Ref/ref_ras_EU5.tif')
+
+#ref <- raster('./Maps/Ref/ref_ras_EU_final.tif')
+#writeRaster(ref, filename = './Maps/Ref/ref_ras_EU_final_round.tif', datatype= 'INT4S', overwrite=T)
+ref <- raster('./Maps/Ref/ref_ras_EU_final_round.tif')
 
 #vcf <- raster("./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic.tif")
 #align_rasters("./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic.tif", "./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif", dstfile = "./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic_C.tif")
@@ -153,7 +153,7 @@ mydata.k <- mydata[complete.cases(mydata),]  # Remove NA, K-means cannot handle 
 # K cluser
 set.seed(55)
 fit.k <- kmeans(mydata.k, cluster_n)      
-Strata.s <- cluster_n 
+
 
 
 # Convert to raster
@@ -287,7 +287,7 @@ print(str.code.x, digits = 0)
 
 # Plotting Ref data by Strata
 
-png(filename=paste("./Results/Reference/Reference_Data_", Strata.fn, "_Orig.png", sep=""))
+png(filename=paste("./Results/Reference/Reference_Data_", Strata.fn, ".png", sep=""))
 plt <- barplot(str.code, beside=F, main=paste("Reference Data by ", Strata.fn, " strata - original", sep=""), xlab="Strata", legend = code.names, names.arg = Strata.names,
                cex.names = 0.7, col=c("red", "orange", "yellow", "green", "blue", "violet", "pink" , "cyan", "gray", "forestgreen", "orange3"), args.legend = list(x = "topright", cex=0.7))
 text(plt, colSums(str.code), labels = colSums(str.code), pos = 3)
@@ -435,9 +435,9 @@ write.csv(fus.par, paste("./Results/Fused_Map/Bias_Weights_", Strata.fn, ".csv",
 err.rcl <- cbind(fus.par$Strata[1:Strata.s], sqrt(fus.par$Fus_Var[1:Strata.s]))
 uncer <- reclassify(Strata, err.rcl, filename=paste("./Results/Fused_Map/Uncertainty_", Strata.fn, ".tif", sep=""), datatype='FLT4S', overwrite=T)
 
-rm(list=c('fus.par', 'i', 'n.pix', 'n.pix.w', 'uncer'))
-rm(list=ls(pattern="err"))
-rm(list=ls(pattern=".var"))
+#rm(list=c('fus.par', 'i', 'n.pix', 'n.pix.w', 'uncer'))
+#rm(list=ls(pattern="err"))
+#rm(list=ls(pattern=".var"))
 
 
 
@@ -447,184 +447,116 @@ rm(list=ls(pattern=".var"))
 
 Strata.n <- Strata.s + 1
 Strata[is.na(Strata)] <- Strata.n  
+#writeRaster(Strata, filename = paste("Results/Fused_Map/Mosaic2/Strata_", Strata.fn, "_.tif", sep=""), datatype='INT1U', overwrite=T) # datatype = FLT4S
+#Strata <- raster(paste("Results/Fused_Map/Mosaic2/Strata_", Strata.fn, "_.tif", sep=""))
 
 #### FOR EUROPE: this function needs to be adapted to 3 maps instead of 2. After Line 593 there should be a "c <-..." and the map "c" should be added to line 594 with respective bias and weight 
 ###  FUSION           
-IIASA[IIASA < 1] <- NA
-Thur[Thur < 1] <- NA
-Gal[Gal < 1] <- NA
-maps <- stack(Gal, Thur, IIASA, Strata)
+#IIASA[IIASA < 1] <- NA
+#Thur[Thur < 1] <- NA
+#Gal[Gal < 1] <- NA
+maps <- stack(Strata, Gal, Thur, IIASA)
+#writeRaster(Gal, filename = paste("Results/Fused_Map/Mosaic2/Gal_crop_", Strata.fn, ".tif", sep=""), datatype='INT4U', overwrite=T) # datatype = FLT4S
+#writeRaster(Thur, filename = paste("Results/Fused_Map/Mosaic2/Thur_crop_", Strata.fn, ".tif", sep=""), datatype='INT4U', overwrite=T) # datatype = FLT4S
+#writeRaster(IIASA, filename = paste("Results/Fused_Map/Mosaic2/IIASA_crop_", Strata.fn, ".tif", sep=""), datatype='INT4U', overwrite=T) # datatype = FLT4S
 
 
-# # Biomass fusion function is broken...
-# # the 'Strata.n' represents the number of stacked layers
-# biomass.fusion <- function(x) {
-#   result <- matrix(NA, dim(x)[1], 1) # create result matrix which stores the final biomass values
-# 
-#   for (n in 1:Strata.n) { # loop through number of strata's
-#     ok <- !is.na(x[,Strata.n]) &  x[,Strata.n] == n # select strata
-#     
-#     #x[ok,1:(Strata.n-1)] <- sweep(x[ok,1:(Strata.n-1)],2,as.matrix(bias[n,]), FUN = "+") # add bias to cell values
-#     x[ok,1:(Strata.n-1)] <- sweep(matrix(x[ok,1:(Strata.n-1)], ncol = Strata.n-1),2,as.matrix(bias[n,]), FUN = "+") # add bias to cell values
-#     
-#     #d <- matrix(NA, dim(x), (Strata.n-1)) # create matrix for # amount of maps to store the weights
-#     #for (l in 1:(Strata.n-1)){
-#       #d[ok,l] <- weight[n,l] # add weights to non NA values for the # of maps
-#     #}
-#     d <- matrix(NA, dim(x), (Strata.n-1)) # create matrix for # amount of maps to store the weights
-#     d[ok,] <- as.matrix(weight[n,]) # add weights to non NA values for the # of maps
-# 
-#     #x[ok,][x[ok,1:(Strata.n-1) < 0]] <- NA # set weights to NA if the original map does not have a value
-#     #x[ok,][is.na(x[ok,1:(Strata.n-1)]) | x[ok,1:(Strata.n-1)] < 0] <- NA # set weights to NA if the original map does not have a value
-#     #[x[ok,1:(Strata.n-1)] == -10] <- NA
-#     #x[ok,][x < 0] <- NA
-#     #x[x[ok,] < 0] <- NA
-#     d[ok,][is.na(x[ok,1:(Strata.n-1)])] <- NA # set weights to NA if the original map does not have a value
-#     
-#     #d <- d[!is.na(d)]
-#     #d[ok,][!is.na(d)]
-#     # -- recalculate weights --
-#     p <- sum(d, na.rm = T) # calculate sum of weight values
-#     pp <- d/p # divide weight values by sum to get the proportion to == 100
-#     pp <- as.numeric(pp)
-#     
-#     g <- x[ok,1:(Strata.n-1)] # get biomass values
-#     g[g < 0] <- 0
-#     gg <- g[!is.na(g)] # select non Na biomass values
-# 
-#     #d[ok,][!is.na(d)]/sum(d[ok,][!is.na(d)], na.rm = T) test
-#     # weight * bias
-#     result[ok] <- as.matrix(as.integer(round(sum(gg * pp, na.rm = T)))) # multiply biomass values with weight and add as result
-#     #result[ok] <- as.matrix(as.integer(round(sum(x[ok,][!is.na(x[ok,1:(Strata.n-1)])] * d[ok,][!is.na(d)]/sum(d[ok,][!is.na(d)], na.rm = T), na.rm = T)))) # multiply biomass values with weight and add as result
-#     
-#     #p <- rowSums(x[ok,1:(Strata.n-1)], na.rm = T) # sum biomass values accross rows for the # number of maps
-#     #p <- rowSums(matrix(x[ok,1:(Strata.n-1)], ncol = Strata.n-1), na.rm = T) # sum biomass values accross rows for the # number of maps
-#     #p <- sum(abs(x[ok,1:(Strata.n-1)]),na.rm = T)
-#    # g <- mutate(Percent = matrix(x[ok,1:(Strata.n-1)] / sum(matrix(x[ok,1:(Strata.n-1)])), na.rm = T)
-#     
-#     #pp <- abs(x[ok,1:(Strata.n-1)])/p # divide sum of biomass through seperate biomass values to get proportional values
-#     
-#     #tot_mat <- x[ok,1:(Strata.n-1)] * pp # bias corrected biomass values * weight
-#     #result[ok] <- as.matrix(as.integer(round(rowSums(tot_mat, na.rm = T)))) # sum weight applied biomass values and add to result
-#   }
-#   return(result)   
-# }
-# 
-# 
-# #old
-# biomass.fusion <- function(x) {
-#   result <- matrix(NA, dim(x)[1], 1)
-#   for (n in 1:Strata.n) {
-#     ok <- !is.na(x[,3]) &  x[,3] == n
-#     a <- x[ok,1] + bias[n,1]              # for these pixels, take the values of map 1 and add the bias (output is a subset with only values for this Stratum)
-#     b <- x[ok,2] + bias[n,2]
-#     c <- x[ok,3] + bias[n,3]
-#     
-#     aa <- a * weight[n,1]
-#     bb <- b * weight[n,2]
-#     cc <- c * weight[n,3]
-#     
-#     
-#     result[ok] <- a * weight[n,1] + b * weight[n,2] +  c * weight[n,2]  # compute fused biomass for the pixels belonging to this Stratum
-#   }
-#   return(result)
-# }
-# 
-# 
-# 
+#ex <- drawExtent()
+
+#maps <- crop(maps,ex)
 
 #old
-biomass.fusion <- function(x) {
+biomass.fusion_old <- function(x) {
   result <- matrix(NA, dim(x)[1], 1)
   for (n in 1:Strata.n) {
-    ok <- !is.na(x[,4]) &  x[,4] == n
-    g <- x[1:3] + as.matrix(bias[n,])
-    g <- x[ok,1:3] + as.matrix(bias[n,])
-    a <- x[ok,1] + bias[n,1]              # for these pixels, take the values of map 1 and add the bias (output is a subset with only values for this Stratum)
-    b <- x[ok,2] + bias[n,2]
-    c <- x[ok,3] + bias[n,3]
-    result[ok] <- g[1] * weight[n,1] + g[2] * weight[n,2] + g[3] * weight[n,3]  # compute fused biomass for the pixels belonging to this Stratum
-    #result[ok] <- a * weight[n,1] + b * weight[n,2] + c * weight[n,3]  # compute fused biomass for the pixels belonging to this Stratum
+    ok <- !is.na(x[,1]) &  x[,1] == n
+    a <- x[ok,2] + bias[n,1]              # for these pixels, take the values of map 1 and add the bias (output is a subset with only values for this Stratum)
+    b <- x[ok,3] + bias[n,2]
+    c <- x[ok,4] + bias[n,3]
+
+    result[ok] <- a * weight[n,1] + b * weight[n,2] +  c * weight[n,3]  # compute fused biomass for the pixels belonging to this Stratum
   }
   return(result)
 }
 
-#old
-biomass.fusion2 <- function(x) {
-  result <- matrix(NA, dim(x)[1], 1)
-  for (n in 1:Strata.n) {
-    ok <- !is.na(x[,4]) &  x[,4] == n
-    a <- x[ok,1] + bias[n,1]              # for these pixels, take the values of map 1 and add the bias (output is a subset with only values for this Stratum)
-    b <- x[ok,2] + bias[n,2]
-    c <- x[ok,3] + bias[n,3]
-    
-    a[ok][a[ok] < 0] <- 0
-    b[ok][b[ok] < 0] <- 0
-    c[ok][c[ok] < 0] <- 0
-    
-    g <- cbind(weight[n,1],weight[n,2],weight[n,3])
-    g[is.na(x[ok])] <- 0
-    p <- sum(g, na.rm = T) # calculate sum of weight values
-    pp <- g/p # divide weight values by sum to get the proportion to == 1
-    
-    a[ok][is.na(a[ok])] <- 0
-    b[ok][is.na(b[ok])] <- 0
-    c[ok][is.na(c[ok])] <- 0
-    
-    result[ok] <- round(a * pp[1]) + round(b * pp[2]) + round(c * pp[3])  # compute fused biomass for the pixels belonging to this Stratum
-    
-    #result[ok] <- a * weight[n,1] + b * weight[n,2] + c * weight[n,3]  # compute fused biomass for the pixels belonging to this Stratum
-  }
-  return(result)
-}
-system.time(Fused.map1 <- calc(maps, fun = biomass.fusion2, progress = 'text'))
-writeRaster(Fused.map1, filename = paste("Results/Fused_Map/Mosaic/Fused.map_", Strata.fn, ".tif", sep=""), datatype='INT1U', overwrite=T) # datatype = FLT4S
-
-
-
-x <- x2
-n.maps <- nlayers(maps)
+#dir.create("./Results/Fused_Map/Old", showWarnings = F)
+#system.time(Fused.map_old <- calc(maps, fun = biomass.fusion_old, progress = 'text'))
+#Fused.map_old[Fused.map_old < 0] <- NA
+#plot(Fused.map_old)
+#writeRaster(Fused.map_old , filename = paste("./Results/Fused_Map/Old/Fused.map_", Strata.fn, "_old.tif", sep=""), datatype= 'INT4S', overwrite=T) # datatype = FLT4S
+#Fused.map_old <- raster(paste("./Results/Fused_Map/Old/Fused.map_", Strata.fn, "_old.tif", sep=""))
   
-# working function. but very slow!
-biomass.fusion <- function(x) {
-  m <- matrix(x, nrow= 1, ncol=n.maps)
-  n <- m[,n.maps]
-  g <- m[1:(n.maps-1)] + as.matrix(bias[n,])
-  g[g < 0] <- 0
-  w <- weight[n,1:(n.maps-1)]
-  w[is.na(g)]<- NA
+
+#dif_ras <- overlay(Fused.map_old,
+#                      Fused.map,
+#                      fun=function(r1, r2){return(r1-r2)})
+
+# set parameters for biomass fuction
+bias_matrix = as.matrix(bias)
+weight_matrix = as.matrix(weight)
+Strata.minus1 = 1:(Strata.n-1)
+Strata.plus1 = 2:(Strata.n)
+Strata.plus1 = 2:(n.maps+1)
+
+biomass.fusion3 <- function(x) {
+  n <- x[1] # get the stratum. Stratum should be first in the raster stack!!
+  g <- x[Strata.plus1] + bias_matrix[n,] # add bias to raster values
+  #g[g < 0] <- 0 # set values below 0 to 0
+  w <- weight_matrix[n,] # get correct strata weight values
+  w[is.na(g)]<- NA # set weight to NA if (g) raster values are NA
   p <- sum(w, na.rm = T) # calculate sum of weight values
   pp <- w/p # divide weight values by sum to get the proportion to == 1
-  pp <- as.numeric(pp)
-  result <- as.integer(round(sum(pp*g, na.rm = T)))
+  result <- as.integer(sum(pp*g, na.rm = T)) # return raster value
   return(result)
 }
 
-m <- matrix(x, nrow= length(bands), ncol=length(dates))
+system.time(Fused.map <- calc(maps, fun = biomass.fusion3, progress = 'text'))
 
-ras <- Strata
-ras[Strata == 1] <- Gal
-
-
-x[1846]
-x <- maps
-x <- x[605]
-
-r.samp <- sampleRandom(maps, size=(n+20), na.rm=TRUE, sp=FALSE, asRaster=FALSE) 
-x <- r.samp[4,]
-x <- matrix(x, ncol = 4)
-
-plot(Gal)
-e <- drawExtent()
-maps1 <- crop(maps,e)
+dir.create("./Results/Fused_Map/New/", showWarnings = F)
+Fused.map[Fused.map < 0] <- NA
+writeRaster(Fused.map, filename = paste("Results/Fused_Map/New/Fused.map_", Strata.fn, ".tif", sep=""), datatype='INT4U', overwrite=T) # datatype = FLT4S
+Fused.map <- raster(paste("Results/Fused_Map/New/Fused.map_", Strata.fn, ".tif", sep=""))
 
 
-system.time(Fused.map <- calc(maps, fun = biomass.fusion, progress = 'text'))
-writeRaster(Fused.map, filename = paste("Results/Fused_Map/Mosaic/Fused.map_", Strata.fn, "2.tif", sep=""), datatype='INT1U', overwrite=T) # datatype = FLT4S
+Fused.final <- Fused.map
+
+#r.samp <- sampleRandom(maps, size=(n+20), na.rm=TRUE, sp=FALSE, asRaster=FALSE) 
+#x <- r.samp[1,]
+#x <- matrix(x, ncol = 4)
+
+# 
+# maps <- stack(Gal, Thur, IIASA, Strata)
+# plot(Gal)
+# e <- drawExtent()
+# maps <- crop(maps,e)
+# 
+# layer1 <- "S:/R_Projects/EU_Biomass/Results/Fused_Map/Mosaic2/Gal_crop_EU_8.tif"
+# layer2 <- "S:/R_Projects/EU_Biomass/Results/Fused_Map/Mosaic2/Thur_crop_EU_8.tif"
+# layer3 <- "S:/R_Projects/EU_Biomass/Results/Fused_Map/Mosaic2/IIASA_crop_EU_8.tif"
+# layer4 <- paste("Results/Fused_Map/Mosaic2/Strata_", Strata.fn, "_.tif", sep="")
+# 
+# xmin <- maps@extent@xmin 
+# xmax <- maps@extent@xmax
+# ymin <- maps@extent@ymin
+# ymax <- maps@extent@ymax
+# 
+# f <- c(layer1, layer2, layer3, layer4)
+# 
+# vrt_name <- "S:/R_Projects/EU_Biomass/output.vrt"
+# 
+# gdalUtils::gdalbuildvrt(f, output.vrt = vrt_name, separate = T, overwrite = T, verbose=F) # te =c(xmin,ymin,xmax,ymax)
+# b_vrt <- brick(vrt_name)
+# #b_sta<- stack(f)
+# #b_sta <- crop(b_sta, maps)
+# 
+# system.time(Fused.map <- calc(maps, fun = biomass.fusion, progress = 'text'))
+# system.time(Fused.map <- calc(b_vrt , fun = biomass.fusion, progress = 'text'))
+# Fused.map[Fused.map < 0] <- 0
+# Fused.map[Strata == Strata.n] <- NA
+# writeRaster(Fused.map, filename = paste("Results/Fused_Map/Mosaic2/Fused.map_", Strata.fn, ".tif", sep=""), datatype= 'INT4S', overwrite=T) # datatype = FLT4S 'INT4S'
 
 
-Fused.map[Fused.map < 0] <- 0
-Fused.map[Strata == Strata.n] <- NA
+
 
 #### for EUROPE: this section until line 690 aims to fill the NA in the fused map. the NA are due to a input biomass map with NA.
 ## another fused map is created using only the biomass map(s) with values, and then this additional map is mosaicked to the original fused map (of line 600)
@@ -663,9 +595,7 @@ Fused.map[Strata == Strata.n] <- NA
 # Thur.bias.adj <- calc(maps1, fun = adj)
 # 
 # Gal.bias.adj[Gal.bias.adj < 0] <- 0
-dir.create("Results/Fused_Map/Mosaic/", showWarnings = F)
-writeRaster(Fused.map, filename = paste("Results/Fused_Map/Mosaic/Fused.map_", Strata.fn, ".tif", sep=""), datatype='INT1U', overwrite=T) # datatype = FLT4S
-# 
+ 
 # 
 # ### FULL COVERAGE: MOSAIC the Baccini extent with the larger Saatchi extent 
 # 
@@ -754,17 +684,6 @@ writeRaster(Fused.map, filename = paste("Results/Fused_Map/Mosaic/Fused.map_", S
 
 ########### TRAINING ERROR  (NB: using the Consolidated Reference dataset)
 
-# Input data
-
-# Strata <- raster(paste("./Results/Strata/Strata_", Strata.fn, ".tif", sep=""))
-# ref <- raster(paste("Results/Reference/Ref_", Strata.fn, "_Cons.tif", sep=""))
-# Fused.final <- raster(paste('Results/FUSED_FINAL_', Strata.fn, '.tif', sep=""))
-
-Strata <- raster(paste("./Results/Strata/Strata_", Strata.fn, ".tif", sep=""))
-ref <- raster('./Maps/Ref/ref_ras_EU2.tif')
-ref <- crop(ref, Gal)
-Fused.final <- raster(paste('Results/Fused_Map/Mosaic/Fused.map_',Strata.fn,'.tif', sep=""))
-
 fus.par <- read.csv(paste("./Results/Fused_Map/Bias_Weights_", Strata.fn, ".csv", sep=""))
 
 dat.r <- stack(Gal, IIASA, Thur, Fused.final, ref, Strata)
@@ -822,7 +741,7 @@ legend(x='topleft', legend="Fused map", col='blue', pch=20)
 abline(0,1)
 dev.off()
 
-rm(list=c('dat', 'err', 'err.all', 'err.sd', 'err.str', 'Gal', 'bias.m', 'Fused.final', 'n.plot', 'ref', 'rmse', 'rmse.m', 'IIASA','Thur', 'smse'))
+#rm(list=c('dat', 'err', 'err.all', 'err.sd', 'err.str', 'Gal', 'bias.m', 'Fused.final', 'n.plot', 'ref', 'rmse', 'rmse.m', 'IIASA','Thur', 'smse'))
 
 
 
@@ -837,157 +756,157 @@ rm(list=c('dat', 'err', 'err.all', 'err.sd', 'err.str', 'Gal', 'bias.m', 'Fused.
 ########### TOTAL AND MEAN AGB, BY STRATA (ONLY FOR BACCINI EXTENT)
 
 
-### PROJECT TO SIN (to calculate areas in equal-area prj. the results change only of 2-5% compared to results in WGS84)
-library(plotKML)
-library(gdalUtils)
-
-## Testing, adjust SINU projection?
-Gal <- raster("./Maps/Barredo/barredo_crop.tif")
-IIASA <- raster("./Maps/IIASA/1km/bmAg_IIASA2010_crop.tif")
-Thur <- raster('./Maps/Thurner/1km/bmAg_Thurner_1km_crop.tif')
-Water <- raster('./Covariates/CCI_Water/Water_NL_Crop.tif')
-Fused.final <- raster('./Results/Fused_Map/Fused_Final.tif')
-Strata <- raster('./Results/Strata/Strata_NL.tif')
-
-Gal_Sin <- raster("./Maps/Barredo/barredo_crop_SIN.tif")
-IIASA_Sin <- raster("./Maps/IIASA/1km/bmAg_IIASA2010_crop_SIN.tif")
-Thur_Sin <- raster('./Maps/Thurner/1km/bmAg_Thurner_1km_crop_SIN.tif')
-Water_Sin <- raster('./Covariates/CCI_Water/Water_NL_Crop_SIN.tif')
-Fused.final <- raster('./Results/Fused_Map/Fused_Final_SIN.tif')
-Strata <- raster('./Results/Strata/Strata_NL_SIN.tif')
-
-Gal_Sin <- reproject(Gal, CRS = '+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=m +no_defs', program = 'GDAL', method = 'near')
-IIASA_Sin <- reproject(IIASA, CRS = '+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=m +no_defs', program = 'GDAL', method = 'near')
-Thur_Sin <- reproject(Thur, CRS = '+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=m +no_defs', program = 'GDAL', method = 'near')
-Water_Sin <- reproject(Water, CRS = '+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=m +no_defs', program = 'GDAL', method = 'near')
-Fused.final  <- reproject(Fused.final , CRS = '+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=m +no_defs', program = 'GDAL', method = 'near')
-Strata  <- reproject(Strata , CRS = '+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=m +no_defs', program = 'GDAL', method = 'near')
-
-writeRaster(Gal_Sin, filename = "./Maps/Barredo/barredo_crop_SIN.tif", overwrite = T)
-writeRaster(IIASA_Sin, filename = "./Maps/IIASA/1km/bmAg_IIASA2010_crop_SIN.tif", overwrite = T)
-writeRaster(Thur_Sin, filename = "./Maps/Thurner/1km/bmAg_Thurner_1km_crop_SIN.tif", overwrite = T)
-writeRaster(Water_Sin, filename = "./Covariates/CCI_Water/Water_NL_Crop_SIN.tif", overwrite = T)
-writeRaster(Fused.final, filename = "./Results/Fused_Map/Fused_Final_SIN.tif", overwrite = T)
-writeRaster(Strata, filename = "./Results/Strata/Strata_NL_SIN.tif", overwrite = T)
-
-
-Gal.ext <- extent(Gal_Sin)
-out.ext <- paste(Gal.ext@xmin, Gal.ext@ymin, Gal.ext@xmax, Gal.ext@ymax, sep=" ")
-
-in.fn <- './Maps/Barredo/barredo_crop.tif'
-out.fn <- './Maps/Barredo/barredo_crop_SIN.tif'
-proj.py <- paste("gdalwarp -s_srs \'+proj=longlat +datum=WGS84\' -t_srs \'+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=m +no_defs\' -te ", out.ext, " -tr 926.6254331 926.6254331 -r near -srcnodata 255 -dstnodata 255 -ot Byte -overwrite ", in.fn, " ", out.fn, sep = "") 
-system(proj.py)
-
-## Project Water to SIN (if file is not available already)
-if (!file.exists("./Covariates/CCI_Water/Water_NL_Crop_SIn.tif")) {
-  in.fn <- "./Covariates/CCI_Water/Water_NL_Crop.tif"
-  out.fn <- "./Covariates/CCI_Water/Water_NL_CropSIN.tif"
-  proj.py <- paste("gdalwarp -s_srs \'+proj=longlat +datum=WGS84\' -t_srs \'+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=m +no_defs\' -te ", out.ext, " -tr 926.6254331 926.6254331 -r near -srcnodata 255 -dstnodata 255 -ot Byte -overwrite ", in.fn, " ", out.fn, sep = "") 
-  system(proj.py)
-} else Water_Sin <- raster(paste('./Covariates/CCI_Water/Water_NL_Crop_SIN.tif', sep=""))
-
-
-
-Gal_Sin[Water_Sin == 2] <- NA
-IIASA_Sin[Water_Sin == 2] <- NA
-Thur_Sin[Water_Sin == 2] <- NA
-
-## Project Strata (Byte) and Fused map (Float32) using GDAL
-
-# in.fn <- paste(getwd(),'/Results/Strata/Strata_', Strata.fn, '.tif', sep="")
-# out.fn <- paste(getwd(),'/Results/Strata/Strata_', Strata.fn, '_SIN.tif', sep="")
+# ### PROJECT TO SIN (to calculate areas in equal-area prj. the results change only of 2-5% compared to results in WGS84)
+# library(plotKML)
+# library(gdalUtils)
+# 
+# ## Testing, adjust SINU projection?
+# Gal <- raster("./Maps/Barredo/barredo_crop.tif")
+# IIASA <- raster("./Maps/IIASA/1km/bmAg_IIASA2010_crop.tif")
+# Thur <- raster('./Maps/Thurner/1km/bmAg_Thurner_1km_crop.tif')
+# Water <- raster('./Covariates/CCI_Water/Water_NL_Crop.tif')
+# Fused.final <- raster('./Results/Fused_Map/Fused_Final.tif')
+# Strata <- raster('./Results/Strata/Strata_NL.tif')
+# 
+# Gal_Sin <- raster("./Maps/Barredo/barredo_crop_SIN.tif")
+# IIASA_Sin <- raster("./Maps/IIASA/1km/bmAg_IIASA2010_crop_SIN.tif")
+# Thur_Sin <- raster('./Maps/Thurner/1km/bmAg_Thurner_1km_crop_SIN.tif')
+# Water_Sin <- raster('./Covariates/CCI_Water/Water_NL_Crop_SIN.tif')
+# Fused.final <- raster('./Results/Fused_Map/Fused_Final_SIN.tif')
+# Strata <- raster('./Results/Strata/Strata_NL_SIN.tif')
+# 
+# Gal_Sin <- reproject(Gal, CRS = '+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=m +no_defs', program = 'GDAL', method = 'near')
+# IIASA_Sin <- reproject(IIASA, CRS = '+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=m +no_defs', program = 'GDAL', method = 'near')
+# Thur_Sin <- reproject(Thur, CRS = '+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=m +no_defs', program = 'GDAL', method = 'near')
+# Water_Sin <- reproject(Water, CRS = '+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=m +no_defs', program = 'GDAL', method = 'near')
+# Fused.final  <- reproject(Fused.final , CRS = '+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=m +no_defs', program = 'GDAL', method = 'near')
+# Strata  <- reproject(Strata , CRS = '+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=m +no_defs', program = 'GDAL', method = 'near')
+# 
+# writeRaster(Gal_Sin, filename = "./Maps/Barredo/barredo_crop_SIN.tif", overwrite = T)
+# writeRaster(IIASA_Sin, filename = "./Maps/IIASA/1km/bmAg_IIASA2010_crop_SIN.tif", overwrite = T)
+# writeRaster(Thur_Sin, filename = "./Maps/Thurner/1km/bmAg_Thurner_1km_crop_SIN.tif", overwrite = T)
+# writeRaster(Water_Sin, filename = "./Covariates/CCI_Water/Water_NL_Crop_SIN.tif", overwrite = T)
+# writeRaster(Fused.final, filename = "./Results/Fused_Map/Fused_Final_SIN.tif", overwrite = T)
+# writeRaster(Strata, filename = "./Results/Strata/Strata_NL_SIN.tif", overwrite = T)
+# 
+# 
+# Gal.ext <- extent(Gal_Sin)
+# out.ext <- paste(Gal.ext@xmin, Gal.ext@ymin, Gal.ext@xmax, Gal.ext@ymax, sep=" ")
+# 
+# in.fn <- './Maps/Barredo/barredo_crop.tif'
+# out.fn <- './Maps/Barredo/barredo_crop_SIN.tif'
 # proj.py <- paste("gdalwarp -s_srs \'+proj=longlat +datum=WGS84\' -t_srs \'+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=m +no_defs\' -te ", out.ext, " -tr 926.6254331 926.6254331 -r near -srcnodata 255 -dstnodata 255 -ot Byte -overwrite ", in.fn, " ", out.fn, sep = "") 
 # system(proj.py)
-# Strata <- raster(out.fn)
 # 
-# in.fn <- paste(getwd(),'/Results/FUSED_FINAL_', Strata.fn, '.tif', sep="")
-# out.fn <- paste(getwd(),'/Results/FUSED_FINAL_', Strata.fn, '_SIN.tif', sep="")
-# proj.py <- paste("gdalwarp -s_srs \'+proj=longlat +datum=WGS84\' -t_srs \'+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=m +no_defs\' -te ", out.ext, " -tr 926.6254331 926.6254331 -r near -srcnodata -3.39999995214e+038 -dstnodata -3.39999995214e+038 -ot Float32 -overwrite ", in.fn, " ", out.fn, sep = "") 
-# system(proj.py)
-# Fused.final <- raster(out.fn)
-
-
-
-pix.area <- res(Gal_Sin)[1]++++++++++++++++++++++++++++++++++++++
-all.map <- stack(Gal_Sin, IIASA_Sin, Thur_Sin, Fused.final, Strata)
-
-all.dat <- as.data.frame(as.matrix(all.map, na.rm = TRUE))
-all.dat <- all.dat[complete.cases(all.dat),]                      ## here only data within the Baccini Extent is used
-colnames(all.dat) <- c("Gal", "IIASA", "Thur", "Fused", "Strata")
-all.dat$Strata <- as.factor(all.dat$Strata)
-
-rm(list=c('all.map', 'bac', 'in.fn', 'out.fn', 'out.ext', 'proj.py', 'saa.ext', 'water'))
-
-
-# MEAN AGB
-Strata.names <- 1:Strata.s
-
-agb.mean.s <- aggregate(all.dat$Gal, by = list(all.dat$Strata), FUN="mean")
-agb.mean.b <- aggregate(all.dat$IIASA, by = list(all.dat$Strata), FUN="mean")
-agb.mean.t <- aggregate(all.dat$Thur, by = list(all.dat$Strata), FUN="mean")
-agb.mean.f <- aggregate(all.dat$Fused, by = list(all.dat$Strata), FUN="mean")
-agb.mean <- cbind(agb.mean.s[,2],agb.mean.b[,2], agb.mean.t[,2], agb.mean.f[,2])
-agb.mean <- t(agb.mean)
-mode(agb.mean) <- "numeric"
-rownames(agb.mean) <- c("Gal", "IIASA", "Thur","Fused")
-colnames(agb.mean) <- Strata.names
-rm(list=ls(pattern="agb.mean."))
-
-
-# TOTAL AGB  
-
-agb.tot.s <- aggregate(all.dat$Gal, by = list(all.dat$Strata), FUN="sum")
-agb.tot.b <- aggregate(all.dat$IIASA, by = list(all.dat$Strata), FUN="sum")
-agb.tot.t <- aggregate(all.dat$Thur, by = list(all.dat$Strata), FUN="sum")
-agb.tot.f <- aggregate(all.dat$Fused, by = list(all.dat$Strata), FUN="sum")
-agb.tot <- cbind(agb.tot.s[,2],agb.tot.b[,2], agb.tot.t[,2], agb.tot.f[,2])
-agb.tot <- t(agb.tot/10^9*(((pix.area^2)/10000))) # What is happening here? This is a hectare conversion?
-mode(agb.tot) <- "numeric"
-rownames(agb.tot) <- c("Gal", "IIASA", "Thur","Fused")
-colnames(agb.tot) <- Strata.names
-rowSums(agb.tot)  
-rm(list=ls(pattern="agb.tot."))
-rm(all.dat)
-
-
-# Summary AGB stat
-
-agb.all <- rbind(agb.mean, agb.tot)
-rownames(agb.all) <- c("Gal_Mean", "IIASA_Mean", "Thur_Mean","Fus_Mean", "Gal_Tot", "IIASA_Tot", "Thur_Tot", "Fus_Tot")
-colnames(agb.all) <- c(1:Strata.s)
-colnames(agb.mean) <- c(1:Strata.s)
-colnames(agb.tot) <- c(1:Strata.s)
-
-
-# Overview Plot
-
-png(filename=paste("Results/Fused_Map/Fusion_Summary_", Strata.fn, ".png", sep=""))
-par(mfrow = c(2,2))
-barplot(t(weight[1:Strata.s,]), beside = F, col=c("red", "green" ,"blue"), xlab="Strata", ylab="%", legend.text=c("Gal", "IIASA", "Thur"), main="Weigths")
-barplot(t(bias[1:Strata.s,]), beside = T, col=c("red", "green" ,"blue"), xlab="Strata", ylab="Mg/ha", legend.text=c("Gal", "IIASA", "Thur"), main="Bias")
-barplot(agb.mean[, 1:Strata.s], beside=T, col=c("red", "green" ,"blue", "darkgreen"), space=c(0.1, 2), xlab="Strata", ylab="Mg/ha", main="Mean AGB", legend.text=c("Gal", "IIASA", "Thur", "Fused"))
-barplot(agb.tot[, 1:Strata.s], beside=T, col=c("red", "green" ,"blue","darkgreen"), space=c(0.1, 2), xlab="Strata", ylab="Pg", main="Total AGB", legend.text=c("Gal", "IIASA", "Thur", "Fused"))
-dev.off()
-
-
-### TOTAL AGB OF FUSED MAP FOR COMPLETE CONTINENT AREA (SAATCHI EXTENT)
-
-maps <- stack(Gal_Sin, Fused.final)
-
-agb.ha <- as.matrix(getValues(maps))
-agb.ha <- agb.ha[complete.cases(agb.ha),]
-agb.T <- agb.ha * ((pix.area^2)/10000)
-Gal.cont <- (sum(agb.T[,1])) / 10^9 # Why the 10^9?
-fus.cont <- (sum(agb.T[,2])) / 10^9
-agb.all <- rbind(agb.all, Gal.cont, fus.cont)
-#agb.all[7:8, 2:3] <- NA #
-
-
-write.csv(agb.all, paste("Results/AGB_Stat_", Strata.fn, ".csv", sep=""))
-rm(list=ls(pattern="agb"))
-rm(Fused.final)
-Sys.time()
+# ## Project Water to SIN (if file is not available already)
+# if (!file.exists("./Covariates/CCI_Water/Water_NL_Crop_SIn.tif")) {
+#   in.fn <- "./Covariates/CCI_Water/Water_NL_Crop.tif"
+#   out.fn <- "./Covariates/CCI_Water/Water_NL_CropSIN.tif"
+#   proj.py <- paste("gdalwarp -s_srs \'+proj=longlat +datum=WGS84\' -t_srs \'+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=m +no_defs\' -te ", out.ext, " -tr 926.6254331 926.6254331 -r near -srcnodata 255 -dstnodata 255 -ot Byte -overwrite ", in.fn, " ", out.fn, sep = "") 
+#   system(proj.py)
+# } else Water_Sin <- raster(paste('./Covariates/CCI_Water/Water_NL_Crop_SIN.tif', sep=""))
+# 
+# 
+# 
+# Gal_Sin[Water_Sin == 2] <- NA
+# IIASA_Sin[Water_Sin == 2] <- NA
+# Thur_Sin[Water_Sin == 2] <- NA
+# 
+# ## Project Strata (Byte) and Fused map (Float32) using GDAL
+# 
+# # in.fn <- paste(getwd(),'/Results/Strata/Strata_', Strata.fn, '.tif', sep="")
+# # out.fn <- paste(getwd(),'/Results/Strata/Strata_', Strata.fn, '_SIN.tif', sep="")
+# # proj.py <- paste("gdalwarp -s_srs \'+proj=longlat +datum=WGS84\' -t_srs \'+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=m +no_defs\' -te ", out.ext, " -tr 926.6254331 926.6254331 -r near -srcnodata 255 -dstnodata 255 -ot Byte -overwrite ", in.fn, " ", out.fn, sep = "") 
+# # system(proj.py)
+# # Strata <- raster(out.fn)
+# # 
+# # in.fn <- paste(getwd(),'/Results/FUSED_FINAL_', Strata.fn, '.tif', sep="")
+# # out.fn <- paste(getwd(),'/Results/FUSED_FINAL_', Strata.fn, '_SIN.tif', sep="")
+# # proj.py <- paste("gdalwarp -s_srs \'+proj=longlat +datum=WGS84\' -t_srs \'+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=m +no_defs\' -te ", out.ext, " -tr 926.6254331 926.6254331 -r near -srcnodata -3.39999995214e+038 -dstnodata -3.39999995214e+038 -ot Float32 -overwrite ", in.fn, " ", out.fn, sep = "") 
+# # system(proj.py)
+# # Fused.final <- raster(out.fn)
+# 
+# 
+# 
+# pix.area <- res(Gal_Sin)[1]++++++++++++++++++++++++++++++++++++++
+# all.map <- stack(Gal_Sin, IIASA_Sin, Thur_Sin, Fused.final, Strata)
+# 
+# all.dat <- as.data.frame(as.matrix(all.map, na.rm = TRUE))
+# all.dat <- all.dat[complete.cases(all.dat),]                      ## here only data within the Baccini Extent is used
+# colnames(all.dat) <- c("Gal", "IIASA", "Thur", "Fused", "Strata")
+# all.dat$Strata <- as.factor(all.dat$Strata)
+# 
+# rm(list=c('all.map', 'bac', 'in.fn', 'out.fn', 'out.ext', 'proj.py', 'saa.ext', 'water'))
+# 
+# 
+# # MEAN AGB
+# Strata.names <- 1:Strata.s
+# 
+# agb.mean.s <- aggregate(all.dat$Gal, by = list(all.dat$Strata), FUN="mean")
+# agb.mean.b <- aggregate(all.dat$IIASA, by = list(all.dat$Strata), FUN="mean")
+# agb.mean.t <- aggregate(all.dat$Thur, by = list(all.dat$Strata), FUN="mean")
+# agb.mean.f <- aggregate(all.dat$Fused, by = list(all.dat$Strata), FUN="mean")
+# agb.mean <- cbind(agb.mean.s[,2],agb.mean.b[,2], agb.mean.t[,2], agb.mean.f[,2])
+# agb.mean <- t(agb.mean)
+# mode(agb.mean) <- "numeric"
+# rownames(agb.mean) <- c("Gal", "IIASA", "Thur","Fused")
+# colnames(agb.mean) <- Strata.names
+# rm(list=ls(pattern="agb.mean."))
+# 
+# 
+# # TOTAL AGB  
+# 
+# agb.tot.s <- aggregate(all.dat$Gal, by = list(all.dat$Strata), FUN="sum")
+# agb.tot.b <- aggregate(all.dat$IIASA, by = list(all.dat$Strata), FUN="sum")
+# agb.tot.t <- aggregate(all.dat$Thur, by = list(all.dat$Strata), FUN="sum")
+# agb.tot.f <- aggregate(all.dat$Fused, by = list(all.dat$Strata), FUN="sum")
+# agb.tot <- cbind(agb.tot.s[,2],agb.tot.b[,2], agb.tot.t[,2], agb.tot.f[,2])
+# agb.tot <- t(agb.tot/10^9*(((pix.area^2)/10000))) # What is happening here? This is a hectare conversion?
+# mode(agb.tot) <- "numeric"
+# rownames(agb.tot) <- c("Gal", "IIASA", "Thur","Fused")
+# colnames(agb.tot) <- Strata.names
+# rowSums(agb.tot)  
+# rm(list=ls(pattern="agb.tot."))
+# rm(all.dat)
+# 
+# 
+# # Summary AGB stat
+# 
+# agb.all <- rbind(agb.mean, agb.tot)
+# rownames(agb.all) <- c("Gal_Mean", "IIASA_Mean", "Thur_Mean","Fus_Mean", "Gal_Tot", "IIASA_Tot", "Thur_Tot", "Fus_Tot")
+# colnames(agb.all) <- c(1:Strata.s)
+# colnames(agb.mean) <- c(1:Strata.s)
+# colnames(agb.tot) <- c(1:Strata.s)
+# 
+# 
+# # Overview Plot
+# 
+# png(filename=paste("Results/Fused_Map/Fusion_Summary_", Strata.fn, ".png", sep=""))
+# par(mfrow = c(2,2))
+# barplot(t(weight[1:Strata.s,]), beside = F, col=c("red", "green" ,"blue"), xlab="Strata", ylab="%", legend.text=c("Gal", "IIASA", "Thur"), main="Weigths")
+# barplot(t(bias[1:Strata.s,]), beside = T, col=c("red", "green" ,"blue"), xlab="Strata", ylab="Mg/ha", legend.text=c("Gal", "IIASA", "Thur"), main="Bias")
+# barplot(agb.mean[, 1:Strata.s], beside=T, col=c("red", "green" ,"blue", "darkgreen"), space=c(0.1, 2), xlab="Strata", ylab="Mg/ha", main="Mean AGB", legend.text=c("Gal", "IIASA", "Thur", "Fused"))
+# barplot(agb.tot[, 1:Strata.s], beside=T, col=c("red", "green" ,"blue","darkgreen"), space=c(0.1, 2), xlab="Strata", ylab="Pg", main="Total AGB", legend.text=c("Gal", "IIASA", "Thur", "Fused"))
+# dev.off()
+# 
+# 
+# ### TOTAL AGB OF FUSED MAP FOR COMPLETE CONTINENT AREA (SAATCHI EXTENT)
+# 
+# maps <- stack(Gal_Sin, Fused.final)
+# 
+# agb.ha <- as.matrix(getValues(maps))
+# agb.ha <- agb.ha[complete.cases(agb.ha),]
+# agb.T <- agb.ha * ((pix.area^2)/10000)
+# Gal.cont <- (sum(agb.T[,1])) / 10^9 # Why the 10^9?
+# fus.cont <- (sum(agb.T[,2])) / 10^9
+# agb.all <- rbind(agb.all, Gal.cont, fus.cont)
+# #agb.all[7:8, 2:3] <- NA #
+# 
+# 
+# write.csv(agb.all, paste("Results/AGB_Stat_", Strata.fn, ".csv", sep=""))
+# rm(list=ls(pattern="agb"))
+# rm(Fused.final)
+# Sys.time()
 
 
 
@@ -1014,7 +933,8 @@ Sys.time()
 
 ## Reference dataset (Original)
 
-ref <- raster('./Maps/Ref/ref_ras_EU2.tif') 
+#ref <- raster('./Maps/Ref/ref_ras_EU2.tif') 
+ref <- raster('./Maps/Ref/ref_ras_EU_final_round.tif')
 ref.fn <- names(ref)
 
 
@@ -1036,67 +956,12 @@ rm(val)
 ref <- cal
 rm(cal)
 
-######  INPUT DATA  ##########
-
-
-#Gal <- raster(paste('./Input_Maps/Gal_1km_', cont, '.tif', sep=""))
-Gal <- raster("./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif")
-Gal <- raster("./Maps/Barredo/barredo_Alligned.tif")
-Gal[Gal < 0] <- NA
-
-# cant get Bar en Gal extents to match, fix required
-#Bar <- projectRaster(Bar, Gal, method = 'ngb')
-#writeRaster(Bar, filename = "./Maps/Barredo/barredo_reproj.tif")
-#
-
-#-------
-IIASA <- raster("./Maps/IIASA/1km/bmAg_IIASA2010_Alligned.tif")
-#IIASA <- crop(IIASA, Gal)
-
-Thur <- raster('./Maps/Thurner/1km/bmAg_Thurner_1km_Alligned.tif')  
-#Thur <- crop(Thur, Gal)
-#ref <- raster(paste('./Reference/Ref_', cont, '.tif', sep=""))
-ref <- raster('./Maps/Ref/ref_ras_EU2.tif')
-ref <- crop(ref, Gal)
-
-#vcf <- raster("./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic.tif")
-#align_rasters("./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic.tif", "./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif", dstfile = "./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic_C.tif")
-#vcf[vcf < 0] <- NA
-#vcf[vcf > 100] <- NA
-#writeRaster(vcf, filename = "./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic_EU.tif")
-vcf <- raster("./Covariates/Outputs/MODIS_VCF/Mosaic/Mosaic_aggre_align.tif")
-
-
-#hei <- raster(paste('./Strata/HEI_', cont, '.tif', sep=""))
-hei <- raster("./Covariates/Height/Height_align.tif")
-#hei <- crop(hei, Gal)
-
-#cci <- raster(paste('./Strata/CCI_', cont, '.tif', sep=""))
-#cci <- raster('./Covariates/CCI_2005/CCI_2005_resample.tif')
-#cci[cci < 0] <- NA
-#writeRaster(cci, filename = './Covariates/CCI_2005/CCI_2005_resample_EU.tif')
-cci <- raster("./Covariates/Outputs/CCI_2005/CCI_Mul_align.tif")
-
-
-
-#water <- raster(paste('./Strata/WATER/Water_1km_', cont, '.tif', sep=""))
-water <- raster("./Covariates/Outputs/CCI_Water/CCI_Water_aggr_Resam_R.tif")
 
 ###### WATER MASK APPLIED TO GalTCHI & ThurCINI ############
-
-
-###### WATER MASK APPLIED TO GalTCHI & ThurCINI ############
-
-
-
-
-###### WATER MASK APPLIED TO SAATCHI ############
 
 Gal[water == 2] <- NA
 Thur[water == 2] <- NA
 IIASA[water == 2] <- NA
-rm(water)
-
 
 
 ##################################################################################
@@ -1235,7 +1100,7 @@ strata.f <- function(x) {
 
 Strata <- calc(strata, fun=strata.f, filename=paste("./Results/Validation/Strata/Strata_", Strata.fn, ".tif", sep=""), datatype='INT1U', overwrite=T, progress='text')
 names(Strata) <- paste("Strata_", Strata.fn, sep="")
-rm(list=ls(pattern='str.'))
+#rm(list=ls(pattern='str.'))
 
 Sys.time()
 
@@ -1255,7 +1120,7 @@ Strata.names <- 1:Strata.s
 #code.names <- as.character(read.csv(paste("./Reference/Codes_CAM.csv", sep=""))[,2])
 #code.n <- maxValue(codes)
 
-code.names <- 'EU'
+#code.names <- 'EU'
 
 ## Each NFI has a unique code, and there is a raster map where each plot of the NFI has the code value (e.g.: all plots in Spain have value 1, in France is 2, etc.)
 codes <- raster(paste('./Reference/Ref_code_EU.tif', sep=""))
@@ -1315,7 +1180,7 @@ print(str.code.x, digits = 0)
 # Plotting Ref data by Strata
 
 
-png(filename=paste("./Results/Validation/Reference/Reference_Data_", Strata.fn, "_Orig.png", sep=""))
+png(filename=paste("./Results/Validation/Reference/Reference_Data_", Strata.fn, ".png", sep=""))
 plt <- barplot(str.code, beside=F, main=paste("Reference Data by ", Strata.fn, " strata - original", sep=""), xlab="Strata", legend = code.names, names.arg = Strata.names,
                cex.names = 0.7, col=c("red", "orange", "yellow", "green", "blue", "violet", "pink" , "cyan", "gray", "forestgreen", "orange3"), args.legend = list(x = "topright", cex=0.7))
 text(plt, colSums(str.code), labels = colSums(str.code), pos = 3)
@@ -1328,143 +1193,143 @@ dev.off()
 
 ## Reference Maps: read the Maps (wall-to-wall) and the raster with only Reference pixel of the maps (Pixel with plots) in the Folders
 
-ref.maps <- list.files('./Reference/Maps', pattern='.tif$')
-N.map <- length(ref.maps)
-if (cont == "SAM") N.map <- 0  # not needed since there is no consolidation needed with the current reference dataset
-
-if (N.map > 0){      ### if there are no reference maps, the whole consolidation section will be skipped!
-  
-  map.list <- vector('list', length=N.map)
-  for (i in 1:N.map) {  map.list[[i]] <- raster(paste('./Reference/Maps/', ref.maps[i], sep="")) }
-  
-  ref.plot <- list.files('./Reference/Maps/Map_Ref', pattern='.tif$')
-  plot.list <- vector('list', length=length(ref.plot))
-  for (i in 1:length(ref.plot)) { plot.list[[i]] <- raster(paste('./Reference/Maps/Map_Ref/', ref.plot[i], sep="")) }
-  
-  
-  ## Mask out pixel in the Maps already sampled (by the plots)
-  
-  for (i in 1:N.map) { map.list[[i]] <- mask(map.list[[i]], plot.list[[i]], inverse=TRUE) }
-  
-  
-  ## Harmonize Strata with maps
-  
-  strata.list <- vector('list', length=N.map)
-  
-  for (i in 1:N.map) {
-    strata.list[[i]] <- crop(Strata, map.list[[i]])
-    strata.list[[i]] <- mask(strata.list[[i]], map.list[[i]])
-  }
-  
-  
-  ## Add code of each map
-  
-  code.list <- vector('list', length=N.map)
-  
-  for (i in 1:N.map) {
-    code.list[[i]] <- crop(codes, strata.list[[i]])
-    code.list[[i]] <- mask(code.list[[i]], strata.list[[i]])
-    strata.list[[i]] <- stack(strata.list[[i]], code.list[[i]])
-  }
-  
-  
-  ## Frequency table: Nr. of pixels of Reference Maps available for each strata
-  
-  str.maps <- matrix(0, code.n, Strata.s)
-  rownames(str.maps) <- code.names     # Code
-  colnames(str.maps) <- c(1:Strata.s)   # Strata
-  
-  for (i in 1:N.map){
-    map <- raster(strata.list[[i]], layer=1)
-    code <- raster(strata.list[[i]], layer=2)
-    if (cont == "ASIA") code <- 7 else  code <- maxValue(code)  ## temp solution for ASIA
-    for (n in 1:ncol(str.maps)) {
-      str.maps[code,n] <- freq(map, useNA='no', value = n)
-    }
-  }
-  
-  
-  ##### Extract random samples for under-represented strata
-  
-  N.min <- (sum(str.code) / ncol(str.code)) / 2    # the min number of ref data per strata is defined as half of average ref per strata
-  N.perc <- (75/(N.map)) * 0.01
-  
-  sizes <- str.code
-  sizes[,] <- 0
-  for (n in 1:ncol(str.code)) {
-    for (j in 1:nrow(str.code)) {
-      if (str.maps[j,n] > 0)
-        if (sum(str.code[,n]) < N.min && (str.code.x[j,n] < 75 || str.code.x[j,n] == 100))  # this condition may be simplified, removing the part after &&
-          if (str.maps[j,n] > round((N.min*2 - sum(str.code[,n]))/N.map)) sizes[j,n] = round((N.min*2 - sum(str.code[,n]))/N.map) else sizes[j,n] = round(str.maps[j,n]/2)
-          else if (any(str.code.x[,n] > 75) && str.code.x[j,n] < 75)
-            if (str.maps[j,n] > sum(str.code[,n])*N.perc ) sizes[j,n] = round(sum(str.code[,n])*N.perc) else sizes[j,n] = round(str.maps[j,n]/2)
-    }
-  }
-  # sizes
-  
-  
-  ## Extract samples from each reference maps
-  
-  sample.list <- vector('list', length=N.map)
-  
-  for (i in 1:N.map){
-    sample.list[[i]] <- map.list[[i]]
-    sample.list[[i]] [] <- NA
-    str.map <- raster(strata.list[[i]], layer=1)
-    code <- raster(strata.list[[i]], layer=2)
-    if (cont == "ASIA") code <- 7 else  code <- maxValue(code)  ## temp solution for ASIA
-    for (n in 1:Strata.s) {
-      if (sizes[code,n] > 0){
-        sampl.str <- map.list[[i]]
-        sampl.str[str.map != n | str.map == NA] <- NA     # mask out the pixels of other strata and the NA values in str.map
-        set.seed(45)
-        sampl.str <- sampleRandom(sampl.str, size = sizes[code,n], asRaster=TRUE)
-        sample.list[[i]] <- merge(sample.list[[i]], sampl.str)
-      }
-    }
-  }
-  
-  rm(str.map)
-  rm(sampl.str)
-  
-  
-  ## Merge in 1 Reference Dataset
-  
-  for (i in 1:N.map){ ref <- merge(sample.list[[i]], ref) }
-  writeRaster(ref, filename=paste("./Results/Validation/Reference/Ref_", Strata.fn, "_Cons.tif", sep=""), overwrite=T)
-  
-  
-  # Make consolidated Barplot to see new distribution
-  
-  ref.str.c <- stack(ref, Strata, codes)
-  ref.dat.c <- as.data.frame(getValues(ref.str.c))
-  ref.dat.c <- ref.dat.c[complete.cases(ref.dat.c),]
-  colnames(ref.dat.c) <- c("AGB", "Strata", "Code")
-  str.code.c <- table(ref.dat.c$Code, ref.dat.c$Strata, dnn = c("Code", "Strata"))
-  
-  png(filename=paste("./Results/Validation/Reference/Reference_Data_", Strata.fn, "_Cons.png", sep=""))
-  plt.c <- barplot(str.code.c, beside=F, main=paste("Reference Data by ", Strata.fn, " - consolidated", sep=""), xlab="Strata", legend = code.names, names.arg = Strata.names, 
-                   cex.names = 0.6, col=c("red", "orange", "yellow", "green", "blue", "violet", "pink" , "cyan", "gray", "forestgreen"), args.legend = list(x = "topright", cex=0.7))
-  text(plt.c, colSums(str.code.c), labels = colSums(str.code.c), pos = 3)
-  dev.off()
-  
-  ref.code <- t(rbind(table(ref.dat$Code), table(ref.dat.c$Code)))
-  colnames(ref.code) <- c("Ref Original", "Ref Consolid")
-  rownames(ref.code) <- code.names
-  write.csv(ref.code, paste("./Results/Validation/Reference/Ref_codes_", Strata.fn, ".csv", sep=""))
-  
-  rm(list=c("sizes", "n", "map", "i", "j"))
-} else {
-  writeRaster(ref, filename=paste("./Results/Validation/Reference/Ref_", Strata.fn, "_Cons.tif", sep=""), overwrite=T)}
-### End of if statement, to skip Consolidation -for Continents without Ref maps
-
-rm(list=ls(pattern="ref."))
-rm(list=ls(pattern="str."))
-rm(list=ls(pattern="code"))
-rm(list=ls(pattern=".list"))
-rm(list=ls(pattern="N."))
-rm(list=ls(pattern="plt"))
-
+# ref.maps <- list.files('./Reference/Maps', pattern='.tif$')
+# N.map <- length(ref.maps)
+# if (cont == "SAM") N.map <- 0  # not needed since there is no consolidation needed with the current reference dataset
+# 
+# if (N.map > 0){      ### if there are no reference maps, the whole consolidation section will be skipped!
+#   
+#   map.list <- vector('list', length=N.map)
+#   for (i in 1:N.map) {  map.list[[i]] <- raster(paste('./Reference/Maps/', ref.maps[i], sep="")) }
+#   
+#   ref.plot <- list.files('./Reference/Maps/Map_Ref', pattern='.tif$')
+#   plot.list <- vector('list', length=length(ref.plot))
+#   for (i in 1:length(ref.plot)) { plot.list[[i]] <- raster(paste('./Reference/Maps/Map_Ref/', ref.plot[i], sep="")) }
+#   
+#   
+#   ## Mask out pixel in the Maps already sampled (by the plots)
+#   
+#   for (i in 1:N.map) { map.list[[i]] <- mask(map.list[[i]], plot.list[[i]], inverse=TRUE) }
+#   
+#   
+#   ## Harmonize Strata with maps
+#   
+#   strata.list <- vector('list', length=N.map)
+#   
+#   for (i in 1:N.map) {
+#     strata.list[[i]] <- crop(Strata, map.list[[i]])
+#     strata.list[[i]] <- mask(strata.list[[i]], map.list[[i]])
+#   }
+#   
+#   
+#   ## Add code of each map
+#   
+#   code.list <- vector('list', length=N.map)
+#   
+#   for (i in 1:N.map) {
+#     code.list[[i]] <- crop(codes, strata.list[[i]])
+#     code.list[[i]] <- mask(code.list[[i]], strata.list[[i]])
+#     strata.list[[i]] <- stack(strata.list[[i]], code.list[[i]])
+#   }
+#   
+#   
+#   ## Frequency table: Nr. of pixels of Reference Maps available for each strata
+#   
+#   str.maps <- matrix(0, code.n, Strata.s)
+#   rownames(str.maps) <- code.names     # Code
+#   colnames(str.maps) <- c(1:Strata.s)   # Strata
+#   
+#   for (i in 1:N.map){
+#     map <- raster(strata.list[[i]], layer=1)
+#     code <- raster(strata.list[[i]], layer=2)
+#     if (cont == "ASIA") code <- 7 else  code <- maxValue(code)  ## temp solution for ASIA
+#     for (n in 1:ncol(str.maps)) {
+#       str.maps[code,n] <- freq(map, useNA='no', value = n)
+#     }
+#   }
+#   
+#   
+#   ##### Extract random samples for under-represented strata
+#   
+#   N.min <- (sum(str.code) / ncol(str.code)) / 2    # the min number of ref data per strata is defined as half of average ref per strata
+#   N.perc <- (75/(N.map)) * 0.01
+#   
+#   sizes <- str.code
+#   sizes[,] <- 0
+#   for (n in 1:ncol(str.code)) {
+#     for (j in 1:nrow(str.code)) {
+#       if (str.maps[j,n] > 0)
+#         if (sum(str.code[,n]) < N.min && (str.code.x[j,n] < 75 || str.code.x[j,n] == 100))  # this condition may be simplified, removing the part after &&
+#           if (str.maps[j,n] > round((N.min*2 - sum(str.code[,n]))/N.map)) sizes[j,n] = round((N.min*2 - sum(str.code[,n]))/N.map) else sizes[j,n] = round(str.maps[j,n]/2)
+#           else if (any(str.code.x[,n] > 75) && str.code.x[j,n] < 75)
+#             if (str.maps[j,n] > sum(str.code[,n])*N.perc ) sizes[j,n] = round(sum(str.code[,n])*N.perc) else sizes[j,n] = round(str.maps[j,n]/2)
+#     }
+#   }
+#   # sizes
+#   
+#   
+#   ## Extract samples from each reference maps
+#   
+#   sample.list <- vector('list', length=N.map)
+#   
+#   for (i in 1:N.map){
+#     sample.list[[i]] <- map.list[[i]]
+#     sample.list[[i]] [] <- NA
+#     str.map <- raster(strata.list[[i]], layer=1)
+#     code <- raster(strata.list[[i]], layer=2)
+#     if (cont == "ASIA") code <- 7 else  code <- maxValue(code)  ## temp solution for ASIA
+#     for (n in 1:Strata.s) {
+#       if (sizes[code,n] > 0){
+#         sampl.str <- map.list[[i]]
+#         sampl.str[str.map != n | str.map == NA] <- NA     # mask out the pixels of other strata and the NA values in str.map
+#         set.seed(45)
+#         sampl.str <- sampleRandom(sampl.str, size = sizes[code,n], asRaster=TRUE)
+#         sample.list[[i]] <- merge(sample.list[[i]], sampl.str)
+#       }
+#     }
+#   }
+#   
+#   rm(str.map)
+#   rm(sampl.str)
+#   
+#   
+#   ## Merge in 1 Reference Dataset
+#   
+#   for (i in 1:N.map){ ref <- merge(sample.list[[i]], ref) }
+#   writeRaster(ref, filename=paste("./Results/Validation/Reference/Ref_", Strata.fn, "_Cons.tif", sep=""), overwrite=T)
+#   
+#   
+#   # Make consolidated Barplot to see new distribution
+#   
+#   ref.str.c <- stack(ref, Strata, codes)
+#   ref.dat.c <- as.data.frame(getValues(ref.str.c))
+#   ref.dat.c <- ref.dat.c[complete.cases(ref.dat.c),]
+#   colnames(ref.dat.c) <- c("AGB", "Strata", "Code")
+#   str.code.c <- table(ref.dat.c$Code, ref.dat.c$Strata, dnn = c("Code", "Strata"))
+#   
+#   png(filename=paste("./Results/Validation/Reference/Reference_Data_", Strata.fn, "_Cons.png", sep=""))
+#   plt.c <- barplot(str.code.c, beside=F, main=paste("Reference Data by ", Strata.fn, " - consolidated", sep=""), xlab="Strata", legend = code.names, names.arg = Strata.names, 
+#                    cex.names = 0.6, col=c("red", "orange", "yellow", "green", "blue", "violet", "pink" , "cyan", "gray", "forestgreen"), args.legend = list(x = "topright", cex=0.7))
+#   text(plt.c, colSums(str.code.c), labels = colSums(str.code.c), pos = 3)
+#   dev.off()
+#   
+#   ref.code <- t(rbind(table(ref.dat$Code), table(ref.dat.c$Code)))
+#   colnames(ref.code) <- c("Ref Original", "Ref Consolid")
+#   rownames(ref.code) <- code.names
+#   write.csv(ref.code, paste("./Results/Validation/Reference/Ref_codes_", Strata.fn, ".csv", sep=""))
+#   
+#   rm(list=c("sizes", "n", "map", "i", "j"))
+# } else {
+#   writeRaster(ref, filename=paste("./Results/Validation/Reference/Ref_", Strata.fn, "_Cons.tif", sep=""), overwrite=T)}
+# ### End of if statement, to skip Consolidation -for Continents without Ref maps
+# 
+# rm(list=ls(pattern="ref."))
+# rm(list=ls(pattern="str."))
+# rm(list=ls(pattern="code"))
+# rm(list=ls(pattern=".list"))
+# rm(list=ls(pattern="N."))
+# rm(list=ls(pattern="plt"))
+# 
 
 ##################################################################################
 ###########################   BIOMASS FUSION   ###################################
@@ -1519,7 +1384,7 @@ Thur.bias <- tapply(error$Thur_er, error$Strata, mean, na.rm = TRUE)
 IIASA.bias <- tapply(error$IIASA_er, error$Strata, mean, na.rm = TRUE)
 bias <- cbind(Gal.bias, Thur.bias, IIASA.bias)
 bias <- bias[1:Strata.s,]
-rm(list=ls(pattern=".bias"))
+#rm(list=ls(pattern=".bias"))
 
 
 ### Calculate variance-covariance matrix and weight matrix using a ROBUST ESTIMATOR
@@ -1552,7 +1417,7 @@ for (i in 1:Strata.s){ v.err[i] <- v[[i]] }
 
 colnames(v.err) <- c("Fus_Var")
 rownames(v.err) <- c(1:Strata.s)
-rm(list=c('cov', 'i', 'v', 'w', 'X'))
+#rm(list=c('cov', 'i', 'v', 'w', 'X'))
 
 ## Finalize Bias and Weights
 
@@ -1589,7 +1454,7 @@ colnames(fus.par) <- c("Strata", "N")
 fus.par$Strata <- as.numeric(as.character(fus.par$Strata))
 fus.par <- cbind(fus.par, bias, weight, err.var[,-1])   # adjust the number of classes
 #fus.par[9,] <- c(9, 0, 0, 0, 0.5, 0.5, rep(0,8))
-fus.par[Strata.s+1,] <- c(Strata.s+1, 0, 0, 0, 0, 0.5, 0.5, 0.5, rep(0,10)) 
+fus.par[Strata.s+1,] <- c(Strata.s+1, 0, 0, 0, 0, 0.3333, 0.3333, 0.3333, rep(0,10)) 
 # Should weights be set according to the number of input maps? e.g. 3 maps == weight 0.33? check this
 bias <- fus.par[,3:5]                             # Add Strata 9 to bias and weight (for Fusion)
 weight <- fus.par[,6:8]
@@ -1599,8 +1464,8 @@ write.csv(fus.par, paste("./Results/Validation/Fused_Map/Bias_Weights_", Strata.
 
 ## Map Uncertainty (Standard deviation of Error of Fused map)
 
-rm(list=c('fus.par', 'i', 'n.pix', 'n.pix.w', 'uncer'))
-rm(list=ls(pattern="err"))
+#rm(list=c('fus.par', 'i', 'n.pix', 'n.pix.w', 'uncer'))
+#rm(list=ls(pattern="err"))
 
 
 ####### MAP FUSION  
@@ -1611,58 +1476,47 @@ Strata.n <- Strata.s + 1
 Strata[is.na(Strata)] <- Strata.n  
 
 #### FOR EUROPE: this function needs to be adapted to 3 maps instead of 2. After Line 593 there should be a "c <-..." and the map "c" should be added to line 594 with respective bias and weight 
+###  FUSION           
+IIASA[IIASA < 1] <- NA
+Thur[Thur < 1] <- NA
+Gal[Gal < 1] <- NA
+
+#### FOR EUROPE: this function needs to be adapted to 3 maps instead of 2. After Line 593 there should be a "c <-..." and the map "c" should be added to line 594 with respective bias and weight 
 ###  FUSION                          
 # Double check, if 3 maps are used and 1 of them contains NA, the outcome will be NA. Adjusted to ignore NA?
-maps <- stack(Gal, Thur, IIASA, Strata)
-n.maps <- nlayers(maps)
+maps <- stack(Strata, Gal, Thur, IIASA)
 
-# the 'Strata.n' represents the number of stacked layers
-biomass.fusion <- function(x) {
-  m <- matrix(x, nrow= 1, ncol=n.maps)
-  n <- m[,n.maps]
-  g <- m[1:(n.maps-1)] + as.matrix(bias[n,])
-  g[g < 0] <- 0
-  w <- weight[n,1:(n.maps-1)]
-  w[is.na(g)]<- NA
-  p <- sum(w, na.rm = T) # calculate sum of weight values
-  pp <- w/p # divide weight values by sum to get the proportion to == 1
-  pp <- as.numeric(pp)
-  result <- as.integer(round(sum(pp*g, na.rm = T)))
-  return(result)
-}
+dir.create("./Results/Validation/Fused_Map/new", showWarnings = F)
 
-Fused.map <- calc(maps, fun = biomass.fusion, progress = 'text')
-Fused.map[Fused.map < 0] <- 0
+# set parameters for biomass fuction
+n.maps <- 3 # set number of input maps
+bias_matrix = as.matrix(bias)
+weight_matrix = as.matrix(weight)
+Strata.minus1 = 1:(Strata.n-1)
+Strata.plus1 = 2:(Strata.n)
+Strata.plus1 = 2:(n.maps+1)
+
+
+system.time(Fused.map_val<- calc(maps, fun = biomass.fusion3, progress = 'text'))
+
+Fused.map_val[Fused.map_val < 0] <- NA
+Fused.final <- Fused.map_val
+writeRaster(Fused.final , filename=paste('Results/Validation/Fused_Map/new/FUSED_FINAL_', Strata.fn, '.tif', sep=''), datatype='INT4U', overwrite=T)
 
 
 ######## EXTEND TO SAATCHI AREA ################
 #### NOT NEEDED FOR CALIBRATION MAP (ALL VALIDATION DATA ARE ON BACCINI EXTENT - CALIBRATION MAP)
-
-Fused.final <- Fused.map
-writeRaster(Fused.final, filename=paste('Results/Validation/Fused_Map/FUSED_FINAL_', Strata.fn, '.tif', sep=''), datatype='FLT4S', overwrite=T)
-rm(list=c("Fused.map", "maps"))
-
-
-
+#rm(list=c("Fused.map_val", "maps"))
 
 
 ##################################################################################
 ###############################   VALIDATION   ###################################
 ##################################################################################
 
-Fused.final <- raster(paste('./Results/Validation/Fused_Map/FUSED_FINAL_', Strata.fn, '.tif', sep=''))
-Strata.fn <- "EU"
-#Gal <- raster(paste('./Input_Maps/Gal_1km_', cont, '.tif', sep=""))
-Gal <- raster("./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif")
-Gal <- raster("./Maps/Barredo/barredo_Alligned.tif")
-Gal[Gal < 0] <- NA
-IIASA <- raster("./Maps/IIASA/1km/bmAg_IIASA2010_Alligned.tif")
-Thur <- raster('./Maps/Thurner/1km/bmAg_Thurner_1km_Alligned.tif')   
-Strata <- raster(paste("./Results/Validation/Strata/Strata_", Strata.fn, ".tif", sep=""))
-
 ## Validation dataset
 
 ref <- raster(paste("./Results/Validation/Reference/Ref_", Strata.fn, "_Val.tif", sep=""))    
+
 
 dat.r <- stack(Gal, IIASA, Thur, Fused.final, ref, Strata)
 #dat.r <- mask(dat.r, CountryShape)
@@ -1737,7 +1591,7 @@ legend(x='topleft', legend="Fused map", col='blue', pch=20)
 abline(0,1)
 dev.off()
 
-rm(list=c('dat', 'err', 'err.all', 'err.sd', 'err.str', 'bac', 'bias', 'bias.m', 'fus.par', 'Fused.final', 'n.plot', 'pix.area', 'ref', 'rmse', 'rmse.m', 'smse', 'saa', 'weight'))
+#rm(list=c('dat', 'err', 'err.all', 'err.sd', 'err.str', 'bac', 'bias', 'bias.m', 'fus.par', 'Fused.final', 'n.plot', 'pix.area', 'ref', 'rmse', 'rmse.m', 'smse', 'saa', 'weight'))
 
 # }
 

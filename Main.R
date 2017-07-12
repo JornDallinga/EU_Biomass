@@ -413,10 +413,11 @@ plot(t)
 #-----------------CCI & CCI ArcGIS---------------------------------------------------------------------
 
 cci <- raster("./Covariates/Outputs/CCI_2005/CCI_Mul.tif")
+cci[cci == 9] <- NA
 # First aggregating using mode, then aligning rasters to a biomass ref map using 'near'.
 aggregate(raster("./Covariates/Outputs/CCI_2005/CCI_Mul.tif"), fact = 3, fun = modal, filename= "./Covariates/Outputs/CCI_2005/CCI_Mul_aggr.tif", progress = 'text', overwrite = T)
 align_rasters(unaligned = "./Covariates/Outputs/CCI_2005/CCI_Mul_aggr.tif", reference = "./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif",dstfile = "./Covariates/Outputs/CCI_2005/CCI_Mul_align.tif", r = 'near')
-cci <- raster("./Covariates/Outputs/CCI_2005/CCI_Mul_align.tif")
+#cci <- raster("./Covariates/Outputs/CCI_2005/CCI_Mul_align.tif")
 
 
 
@@ -430,7 +431,7 @@ aggregate(water, fact = 6, fun = modal, filename= "./Covariates/Outputs/CCI_Wate
 resample(x = raster("./Covariates/Outputs/CCI_Water/CCI_Water_aggr_R.tif"), y = raster("./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif"), method = "ngb", filename = "./Covariates/Outputs/CCI_Water/CCI_Water_aggr_Resam_R.tif", progress = 'text', overwrite = T)
 #align_rasters(unaligned = "./Covariates/Outputs/CCI_Water/CCI_Water_aggr_R.tif", reference = "./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif", dstfile = "./Covariates/Outputs/CCI_Water/CCI_Water_aggr_Align_R.tif", r = "near", overwrite = T)
 
-
+te <- raster("./Covariates/Outputs/CCI_Water/CCI_Water_aggr_Resam_R.tif")
 
 #-----------------Height---------------------------------------------------------------------
 
@@ -438,5 +439,7 @@ resample(x = raster("./Covariates/Outputs/CCI_Water/CCI_Water_aggr_R.tif"), y = 
 height <- raster("./Covariates/Height/Height_large_extent.tif")
 Gal <- raster("./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif")
 align_rasters(unaligned = "./Covariates/Height/Height_large_extent.tif", reference = "./Maps/Gallaun/1km/bmAg_JR2000_ll_1km_eur.tif", dstfile = "./Covariates/Height/Height_align.tif", r = "near", overwrite = T)
+
+
 
 
