@@ -1,16 +1,21 @@
 #### Reference data preperation
 # Make all reference data compatible
 
+if (!require(velox)) install.packages('velox')
+if (!require(SpaDES)) install.packages('SpaDES')
+
+
 # -------------------------------------------------------------------------------------------------------------- #
 
 
 # Read all biomass points
-shape <- readOGR(dsn = "./Ref_datasets/Netherlands", layer = "Netherlands_NFI")
+shape <- readOGR(dsn = "./Corrected_data/NL_AGB", layer = "NL_AGB")
 shape1 <- readOGR(dsn = "./Ref_datasets/Croatia", layer = "Croatia_NFI")
 shape2 <- readOGR(dsn = "./Ref_datasets/Germany", layer = "Germany_NFI")
 shape3 <- readOGR(dsn = "./Ref_datasets/France", layer = "France_NFI_10km")
 shape4 <- readOGR(dsn = "./Ref_datasets/Italy", layer = "Italy_NFI_1km")
-shape5 <- readOGR(dsn = "./Ref_datasets/Spain", layer = "Spain_NFI_2000_2008")
+shape5 <- readOGR(dsn = "./Corrected_data/Spain_AGB", layer = "Spain_AGB")
+shape6 <- readOGR(dsn = "./Ref_datasets/Sweden/Sweden_NFI_Plots/Sweden_NFI_Plots", layer = "Sweden_NFI_2007_2016")
 
 # Transform coordinate system
 #shape <- spTransform(shape, CRS("+proj=longlat +datum=WGS84")) # if needed
@@ -21,7 +26,8 @@ shape1 <- shape1[,c("AGB")]
 shape2 <- shape2[,c("AGB")]
 shape3 <- shape3[,c("SumOfAGB")]
 shape4 <- shape4[,c("W4apv_ha")]
-shape5 <- shape5[,c("SumOfAGB")]
+shape5 <- shape5[,c("AGB_T_HA")]
+shape6 <- shape6[,c("AGB")]
 
 # rename AGB columns if needed
 names(shape3) <- "AGB"
@@ -35,9 +41,10 @@ shape2$country_ID <- 3
 shape3$country_ID <- 4
 shape4$country_ID <- 5
 shape5$country_ID <- 6
+shape6$country_ID <- 7
 
 # merge the dataframes together
-dat <- rbind(shape, shape1, shape2, shape3, shape4, shape5)
+dat <- rbind(shape, shape1, shape2, shape3, shape4, shape5, shape6)
 rm(list=ls(pattern='shape'))
 
 # Create country code raster
@@ -65,7 +72,7 @@ code.n <- maxValue(codes)
 # Read biomass points
 #BufferWGS <- dat
 # set plot year threshold
-#year <- 2000
+year <- 2000
 
 # Set year values based on threshold to NA
 #BufferWGS[BufferWGS$YEAR < year ,] <- NA
@@ -74,7 +81,7 @@ code.n <- maxValue(codes)
 #BufferWGS <- BufferWGS[!is.na(BufferWGS$YEAR),]
 
 # country/extent of analysis
-Country  <- readOGR(dsn = "./data/Boundaries/Europe", layer = "Europe_in_Gal")
+#Country  <- readOGR(dsn = "./data/Boundaries/Europe", layer = "Europe_in_Gal")
 
 # -------------------------------------------------------------------------------------------------------------- #
 
@@ -96,19 +103,19 @@ ref_bio <- rasterize(dat, ras_NA, dat$AGB, fun = mean, filename = './Reference/R
 rastopol <- rasterToPolygons(ref_bio)
 
 # mask to only select pixels/cells that overlap with spatial points
-#m <- mask(c, df_final)
-
-# Union features
+# m <- mask(c, df_final)
+#
+# # Union features
 #union_points <- gUnaryUnion(rastopol)
-
-# write to output file for verifying in other software (e.g. ArcGIS)
-writeOGR(union_points, dsn = paste0(getwd(), '/data'), layer = "rastopolygon", driver = "ESRI Shapefile")
-
-# unlink existing file (if it exists). Known bugs arise if you simply overwrite the .rds file.
-unlink("data/BufferWGS.rds", recursive = FALSE)
-# write to RDS file
-saveRDS(union_points, file = "data/BufferWGS.rds", ascii = FALSE, version = NULL,
-        compress = TRUE, refhook = NULL)
+#
+# # write to output file for verifying in other software (e.g. ArcGIS)
+#writeOGR(union_points, dsn = paste0(getwd(), '/data'), layer = "rastopolygon", driver = "ESRI Shapefile")
+#
+# # unlink existing file (if it exists). Known bugs arise if you simply overwrite the .rds file.
+#unlink("data/BufferWGS.rds", recursive = FALSE)
+# # write to RDS file
+#saveRDS(union_points, file = "data/BufferWGS.rds", ascii = FALSE, version = NULL,
+#        compress = TRUE, refhook = NULL)
 
 # -------------------------------------------------------------------------------------------------------------- #
 
@@ -121,25 +128,12 @@ Year <- 2000
 
 
 # downloading tree cover data from Hansen (Global Forest Watch)
-# can take some time!! Below a faster solution
+# interupt this function after downloading!
 Hansen(input, Threshold, Year, download_loc, output)
-
 
 #------------------------------------------------------------------------------------------------------
 
 # list Hansen files that you wish to process
-list_f <- list.files("./data/Hansen_download/", pattern = "treecover2000", full.names = T, recursive = T)
-# Reclassify Hansen
-dir.create('./data/Hansen_Reclass', showWarnings = F)
-
-list_f <- list.files("./data/Hansen_download/", pattern = "treecover2000", full.names = T, recursive = T)
-ls2 <- list.files("./data/Hansen_download/", pattern = "treecover2000", full.names = F, recursive = T)
-
-
-# Works, but will take quite some GB and time. Below example on how to do it by tile. Better to skip
-#mosaic_rasters(list_f, dst_dataset = "./data/Hansen_download/mosaic.tif", overwrite = T, ot = "Int16")
-
-# lets test a method that select plots per tile
 list_f <- list.files("./data/Hansen_download/", pattern = "treecover2000", full.names = T, recursive = T)
 
 
@@ -149,10 +143,12 @@ list_f <- list.files("./data/Hansen_download/", pattern = "treecover2000", full.
 list_f <- list.files("./data/Hansen_download/", pattern = "treecover2000", full.names = T, recursive = T)
 
 # create dataframe to write final results
-#rastopol <- df_final[-4]
 df3 <- rastopol[0,]
+# set cores
 detectCores()
-beginCluster( detectCores() -1) #use all but one core
+beginCluster( detectCores() -2) # use all but one core
+
+# following function uses vortex and SpaDES, improved raster computing performance. 
 system.time(for (i in 1:length(list_f)){
   
   pb <- winProgressBar(title = "progress bar", min = 0,
@@ -165,20 +161,43 @@ system.time(for (i in 1:length(list_f)){
   
   print(paste0(" | Tile ", i , " Out of ", length(list_f) , ": cropping"))
   
-  c <- crop(rastopol, lr, progress = T)
+  # Split into sections - saves automatically to path
+  sections = splitRaster(lr, nx=2, ny=2, path="./data/temp_data/")
   
-  print(paste0(" | Tile ", i , " Out of ", length(list_f) , ": extracting raster values of ", length(c), " features "))
   
+  count <- 1
+  for (b in sections){
+    c <- crop(rastopol, b, progress = T)
+    vx <- velox(b)
+    if (!is.null(c)){
+      lr_ex_velox <- vx$extract(sp = c, fun = NULL)
+      lr_m <- lapply(lr_ex_velox ,mean)
+      lr_sd  <- lapply(lr_ex_velox ,sd)
+      c$Mean <- unlist(lr_m)
+      c$SD <- unlist(lr_sd)
+      df3 <- rbind(df3, c)
+      print(paste0(" | section ", count , " Out of ", length(sections) , ": extracted"))
+      count <- count + 1
+    } else {
+      print(paste0(" | section ", count , " Out of ", length(sections) , ": empty"))
+      count <- count + 1
+    }
 
-  lr_ex <- extract(x = lr,y = c, na.rm = T, progress = 'text')
-  
-  print(paste0(" | Tile ", i , " Out of ", length(list_f) , ": calculating mean and sd "))
-  
-  lr_m <- lapply(lr_ex ,mean)
-  lr_sd  <- lapply(lr_ex ,sd)
-  
-  c$Mean <- unlist(lr_m)
-  c$SD <- unlist(lr_sd)
+  }
+  # ----------------------- OLD SECTION, WORKS BUT IS MUCH SLOWER
+  # c <- crop(rastopol, lr, progress = T)
+  # 
+  # print(paste0(" | Tile ", i , " Out of ", length(list_f) , ": extracting raster values of ", length(c), " features "))
+  # 
+  # lr_ex <- extract(x = lr,y = c, na.rm = T, progress = 'text')
+  # 
+  # print(paste0(" | Tile ", i , " Out of ", length(list_f) , ": calculating mean and sd "))
+  # 
+  # lr_m <- lapply(lr_ex ,mean)
+  # lr_sd  <- lapply(lr_ex ,sd)
+  # 
+  # c$Mean <- unlist(lr_m)
+  # c$SD <- unlist(lr_sd)
   
   if (i == length(list_f)) {
     close(pb)
@@ -189,83 +208,10 @@ system.time(for (i in 1:length(list_f)){
     
   }
   print(paste0(" | Tile ", i , " Out of ", length(list_f) , " Done "))
-  df3 <- rbind(df3, c)
+  
+  # df3 <- rbind(df3, c)
+  do.call(file.remove, list(list.files("./data/temp_data/", full.names = TRUE)))
 })
-
-
-############################# Below - NOT WORKING ##############################
-# rastopol
-# f <- multicore.tabulate.intersect(cores = 7, c = c, lr = lr)
-# multicore.tabulate.intersect<- function(cores, c, lr){ 
-#   foreach(i=1:cores, .packages= c("raster","tcltk","foreach"), .combine = rbind) %dopar% {
-#     
-#     mypb <- tkProgressBar(title = "R progress bar", label = "", min = 0, max = length(c), initial = 0, width = 300) 
-#     final<- rastopol[0,]
-#     foreach(j = 1:length(c), .combine = rbind) %do% {
-# 
-#       tryCatch({ #not sure if this is necessary now that I'm using foreach, but it is useful for loops.
-#         
-#         single <- c[j,] #pull out individual polygon to be tabulated
-#         crop_1 <- crop(lr, single)
-#         ext <- getValues(crop_1) #much faster than extract
-#         single$Mean <-mean(ext) #tabulates the values of the raster in the polygon
-#         single$SD <-sd(ext) #tabulates the values of the raster in the polygon
-#         final <- rbind(final, single)
-#         
-#         setTkProgressBar(mypb, j, title = "number complete", label = j)
-#         
-#       }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")}) #trycatch error so it doesn't kill the loop
-#       
-#       return(final)
-#     }  
-#   }
-# }
-
-
-#------------------------------------------------------------------------------------------------------
-#-------- Applies threshold and SDM function for a group of plots that intersect with a tile ----------
-# Might take longer that above, has to be tested
-#------------------------------------------------------------------------------------------------------
-
-# for (i in 1:length(rastopol)){
-#   pb <- winProgressBar(title = "progress bar", min = 0,
-#                        max = length(rastopol), width = 300)
-#   Sys.sleep(0.1)
-#   setWinProgressBar(pb, i, title=paste(round(i/length(rastopol)*100, 0),
-#                                        "% done"))
-#   for (b in 1:length(list_f)){
-#     lr <- raster(list_f[b])
-#     if (tryCatch(!is.null(crop(lr,extent(rastopol[i,]))), error=function(e) return(FALSE)) == T){
-#       c <- crop(lr,rastopol[i,])
-#       c[c < Threshold] <- 0 
-#       c[c >= Threshold] <- 1
-#       SDM <- SDM_function(c)
-#       if (SDM$lanscape.division.index > .15 | is.na(SDM$lanscape.division.index))
-#         rastopol$bmAg_JR2000_ll_1km_eur[i] <- NA
-#     }
-#     if (i == length(rastopol))
-#       close(pb)
-#   }
-# }
-
-
-
-#------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------
-
-
-# Reclassify
-# Works, but time consuming
-## Not needed anymore
-# for (i in 1:length(list_f)){
-#   filename_S <- paste0('./data/Hansen_Reclass/', 'reclass_',ls2[i])
-#   if (!file.exists(filename_S)){
-#     lr <- raster(list_f[i])
-#     lr[lr >= Threshold] <- 1 
-#     lr[lr < Threshold] <- 0 
-#     writeRaster(lr, filename = paste0('./data/Hansen_Reclass/', 'reclass_',ls2[i]), overwrite = F)
-#   }
-# }
 
 
 # -------------------------------------------------------------------------------------------------------------- #
@@ -276,14 +222,10 @@ ref_pol <- readOGR(dsn = "./data/Output", layer = "pol_sel_EU_final")
 # Rasterize points 
 rasterize(ref_pol, ras, ref_pol$Ref_bio_EU, fun=mean, filename = './Maps/Ref/ref_ras_EU_final.tif', progress = 'text', overwrite = T) 
 
-# select intersecting points from rasterized polygons
-#ref_data <- crop(df_final, ref_pol)
-#writeOGR(ref_data, dsn = paste0(getwd(), '/data'), layer = "ref_data", driver = "ESRI Shapefile")
-
 #rm(ref_pol, df, df_2, df_del, df_final, df_mean, df_sel, i, lis, n_occur)
 
 # -------------------------------------------------------------------------------------------------------------- #
-test <- raster('./Maps/Ref/ref_ras_EU_final.tif')
-plot(test)
-#ref_data <- readOGR(dsn = "./data", layer = "ref_data")
-#rasterize(ref_data, ras, ref_data$bA_JR20, fun=mean, filename = './Maps/Ref/ref_ras_EU.tif') 
+raster_ref <- raster('./Maps/Ref/ref_ras_EU_final.tif')
+writeRaster(round(raster_ref), filename = './Maps/Ref/ref_ras_EU_final_round.tif', overwrite = T)
+plot(raster_ref)
+

@@ -7,7 +7,7 @@ if (!require(robust)) install.packages('robust')
 # Set parameters
 
 name.fn <- 'EU'# set file name
-cluster_n <- 8 # set cluster solution
+cluster_n <- 3 # set cluster solution
 Strata.s <- cluster_n
 Strata.fn <- paste0(name.fn,"_", cluster_n)
 n_maps <- 3 # set number of input maps
@@ -97,11 +97,11 @@ Thur.rf.f <- formula(Thur.er ~ hei + cci + vcf + Thur + Gal + IIASA)
 IIASA.rf.f <- formula(IIASA.er ~ hei + cci + vcf + Thur + Gal + IIASA)
 #Thur.rf.f <- formula(Thur.er ~ hei + vcf + Gal + Thur + cci)
 set.seed(55)
-Gal.rf <- randomForest(Gal.rf.f, error, importance=F, mtry=2)
+Gal.rf <- randomForest(Gal.rf.f, error,  mtry=2)
 set.seed(55)
-Thur.rf <- randomForest(Thur.rf.f, error, importance=F, mtry=2)
+Thur.rf <- randomForest(Thur.rf.f, error,  mtry=2)
 set.seed(55)
-IIASA.rf <- randomForest(IIASA.rf.f, error, importance=F, mtry=2)
+IIASA.rf <- randomForest(IIASA.rf.f, error, mtry=2)
 # Gal.rf
 # Thur.rf
 
@@ -424,11 +424,11 @@ fus.par <- cbind(fus.par, bias, weight, err.var[,-1])   # adjust the number of c
 #fus.par[9,] <- c(9, 0, 0, 0, 0.5, 0.5, rep(0,8))
 weight_fill <- 1/n.maps
 fus.par[Strata.s+1,] <- c(Strata.s+1, 0, rep(0,n.maps), rep(weight_fill,n.maps), rep(0,((n.maps*2)+4))) # Should weights be set according to the number of input maps? e.g. 3 maps == weight 0.33? check this
+
 bias <- fus.par[,3:(n.maps+2)]                             # Add Strata 9 to bias and weight (for Fusion)
 weight <- fus.par[,(3+n.maps):(2+(n.maps*2))]
 dir.create("./Results/Fused_Map", showWarnings = F)
 write.csv(fus.par, paste("./Results/Fused_Map/Bias_Weights_", Strata.fn, ".csv", sep=""), row.names = FALSE)
-
 
 ## Map Uncertainty (Standard deviation of Error of Fused map)
 
@@ -464,20 +464,20 @@ maps <- stack(Strata, Gal, Thur, IIASA)
 #ex <- drawExtent()
 
 #maps <- crop(maps,ex)
-
-#old
-biomass.fusion_old <- function(x) {
-  result <- matrix(NA, dim(x)[1], 1)
-  for (n in 1:Strata.n) {
-    ok <- !is.na(x[,1]) &  x[,1] == n
-    a <- x[ok,2] + bias[n,1]              # for these pixels, take the values of map 1 and add the bias (output is a subset with only values for this Stratum)
-    b <- x[ok,3] + bias[n,2]
-    c <- x[ok,4] + bias[n,3]
-
-    result[ok] <- a * weight[n,1] + b * weight[n,2] +  c * weight[n,3]  # compute fused biomass for the pixels belonging to this Stratum
-  }
-  return(result)
-}
+# 
+# #old
+# biomass.fusion_old <- function(x) {
+#   result <- matrix(NA, dim(x)[1], 1)
+#   for (n in 1:Strata.n) {
+#     ok <- !is.na(x[,1]) &  x[,1] == n
+#     a <- x[ok,2] + bias[n,1]              # for these pixels, take the values of map 1 and add the bias (output is a subset with only values for this Stratum)
+#     b <- x[ok,3] + bias[n,2]
+#     c <- x[ok,4] + bias[n,3]
+# 
+#     result[ok] <- a * weight[n,1] + b * weight[n,2] +  c * weight[n,3]  # compute fused biomass for the pixels belonging to this Stratum
+#   }
+#   return(result)
+# }
 
 #dir.create("./Results/Fused_Map/Old", showWarnings = F)
 #system.time(Fused.map_old <- calc(maps, fun = biomass.fusion_old, progress = 'text'))
@@ -950,6 +950,7 @@ rm(list=ls(pattern='.p'))
 rm(val)
 
 
+
 ##################################################################################
 ###############################   CALIBRATION   ##################################
 
@@ -967,6 +968,8 @@ IIASA[water == 2] <- NA
 ##################################################################################
 ###########################   ERROR STRATA   #####################################
 ##################################################################################
+
+
 
 Gal.er <- ref - Gal
 IIASA.er <- ref - IIASA

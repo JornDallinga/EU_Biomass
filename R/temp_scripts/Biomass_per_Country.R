@@ -1,22 +1,23 @@
-#Country <- 'NLD' # Netherlands
-# uncertain: 39.97662  48.14736  48.53649  52.47250  54.61462  56.30868  62.49749 106.54353
+# Load libraries
+
 if (!require(xlsx)) install.packages('xlsx')
 if (!require(dplyr)) install.packages('dplyr')
 
-name.fn <- 'EU'# set file name
-Strata.fn <- 'EU'# set file name
-cluster_n <- 3 # set cluster solution
+dir.create(paste("./Results/Validation/BiomassPerCountry/", sep=""), showWarnings = F)
+
+name.fn <- "EU" # set file name
+Strata.fn <- name.fn # copy 
+cluster_n <- 8 # set cluster solution
 Strata.s <- cluster_n
 Strata.fn <- paste0(name.fn,"_", cluster_n)
 n_maps <- 3 # set number of input maps
-n.maps <- 3 # set number of input maps
 
-# load ref raster datasets
-ref <- raster('./Maps/Ref/ref_ras_EU_final_round.tif') # all ref dataset
-#ref <- raster(paste("./Results/Validation/Reference/Ref_", Strata.fn, "_Val.tif", sep="")) # 30% validation ref dataset
+
+# load ref raster datasets (Check which ref data to load!). Load either full raster or 30% validation raster.
+#ref <- raster('./Maps/Ref/ref_ras_EU_final_round.tif') # all ref dataset
+ref <- raster(paste("./Results/Validation/Reference/Ref_", Strata.fn, "_Val.tif", sep="")) # 30% validation ref dataset
 
 # load Fused map
-#fused.map <- raster(paste("Results/Validation/Fused_map/FUSED_FINAL_", Strata.fn, ".tif", sep=""))
 fused.map <- raster(paste('Results/Validation/Fused_Map/new/FUSED_FINAL_', Strata.fn, '.tif', sep=''))
 
 
@@ -47,20 +48,10 @@ Fused.final_Sin  <- reproject(fused.map , CRS = '+proj=sinu +lon_0=0 +x_0=0 +y_0
 
 
 CountryShape_Sin  <- reproject(EU , CRS = '+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=m +no_defs', program = 'GDAL', method = 'near')
-#CountryShape_Sin <- crop(CountryShape_Sin, Gal.map_Sin)
-#CountryShape_Sin1  <- reproject(CountryShape , CRS = '+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=m +no_defs', program = 'GDAL', method = 'near')
 Strata_Sin  <- reproject(Strata , CRS = '+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=m +no_defs', program = 'GDAL', method = 'near')
 Gal.map_Sin  <- reproject(Gal, CRS = '+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=m +no_defs', program = 'GDAL', method = 'near')
 IIASA.map_Sin <- reproject(IIASA, CRS = '+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=m +no_defs', program = 'GDAL', method = 'near')
 Thur.map_Sin <- reproject(Thur, CRS = '+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=m +no_defs', program = 'GDAL', method = 'near')
-
-
-#fused_NL_c <- crop(Thur.map_Sin  , CountryShape_Sin1)
-#fused_NL_c2 <- mask(fused_NL_c   , CountryShape_Sin1)
-#pix.area <- res(Thur.map_Sin)[1]
-
-# sum cell values
-#cellStats(fused_NL_c2, 'sum', na.rm = T)
 
 
 # add forest mask here
@@ -83,8 +74,8 @@ names_col <- c("Thur","IIASA","Gal","Fused" ,"Strata")
 colnames(output) <- c("Country",names_col[-length(names(all.map))])
 pix.area <- res(Thur.map_Sin)[1]
 
-#CountryShape_Sin <- CountryShape_Sin[-3,]
-#
+
+# Compute AGB for the countries
 
 for (b in 1:length(CountryShape_Sin)){
   #all.map <- crop(all.map, CountryShape_Sin[b,])
@@ -145,9 +136,7 @@ sort.df <- with(output2,  output2[order(output2$Country) , ])
 write.xlsx(sort.df, file = paste("./Results/Validation/BiomassPerCountry/Biomass_",Strata.fn,"_new.xlsx", sep=""), sheetName = "Biomass", append = F)
 
 
-#dat <- as.data.frame(as.matrix(dat.r, na.rm = TRUE))
-#colnames(dat) <- c("Thur", "IIASA","Gal", "Fused", "Ref", "Strata")
-
+# data prep for R2 computing
 dat.r <- stack(Thur, IIASA, Gal, fused.map, ref, Strata)
 forest_m[forest_m == 0] <- NA
 dat.r <- mask(dat.r, forest_m, progress = 'text')
@@ -158,7 +147,7 @@ names_col <- c("Country","Thur","IIASA","Gal","Fused" ,"ref", "Strata")
 
 colnames(output_val) <- names_col
 
-#test R2
+# compute R2 for all EU countries
 for (b in 1:length(EU)){
   #all.map <- crop(all.map, CountryShape_Sin[b,])
   
@@ -170,8 +159,6 @@ for (b in 1:length(EU)){
   }
   
   sel.map  <- mask(sel.map , EU[b,])
-  #ref.map <- crop(ref, EU[b,])
-  #ref.map  <- mask(ref.map, EU[b,])
   
   all.map <- as.data.frame(as.matrix(sel.map, na.rm = TRUE))
   all.map$Strata <- as.factor(all.map$Strata)
@@ -187,7 +174,6 @@ for (b in 1:length(EU)){
   
   for (i in 1:n.rot){
     
-    #fusion.lm = lm(sel.map$FUSED_FINAL_EU_8@data@values ~ all.map$Ref_EU_8_Val, data=all.map)
     sel <- subset(sel.map,i)
     sel.dat <-  getValues(sel)
     flag1 <- tryCatch(lmfit <- lm(sel.dat ~ all.map$ref,  data=all.map), error = function(x) NULL)
@@ -202,7 +188,6 @@ for (b in 1:length(EU)){
   print(paste0(b, " out of ", length(EU))) 
 }
 
-output_val
 # remove countries with all NA's
 output_val_df <- as.data.frame(output_val)
 # Set country column to character

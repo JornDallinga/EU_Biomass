@@ -19,6 +19,7 @@ if (!require(snow)) install.packages('snow')
 if (!require(tcltk)) install.packages('tcltk')
 
 
+
 # load functions
 source("R/hansen.R")
 source("R/SDM_function.R")
@@ -129,7 +130,7 @@ Year <- 2000
 
 
 # downloading tree cover data from Hansen (Global Forest Watch)
-# can take some time!!
+# can take some time!! cancel function after downloading
 # skip for large datasets, see Ref_data.R
 Hansen(input, Threshold, Year, download_loc, output)
 
@@ -137,92 +138,10 @@ Hansen(input, Threshold, Year, download_loc, output)
 # lets test a method that select plots per tile
 list_f <- list.files("./data/Hansen_download/", pattern = "treecover2000", full.names = T, recursive = T)
 
-#------------------------------------------------------------------------------------------------------
-#-------- Applies threshold and SDM function for plots that intersect with a tile ----------
-#------------------------------------------------------------------------------------------------------
-
-df <- rastopol[0,]
-for (i in 1:length(list_f)){
-  lr <- raster(list_f[i])
-  c <- crop(rastopol, lr)
-  
-  for (b in 1:length(c)){
-    pb <- winProgressBar(title = "progress bar", min = 0,
-                         max = length(c), width = 300)
-    Sys.sleep(0.1)
-    setWinProgressBar(pb, b, title=paste(round(b/length(c)*100, 0),
-                                         "% done"))
-    
-    pol <- crop(lr,c[b,])
-    pol[pol < Threshold] <- 0 
-    pol[pol >= Threshold] <- 1
-    SDM <- SDM_function(pol)
-    
-    if (SDM$lanscape.division.index > .15 | is.na(SDM$lanscape.division.index)){
-      c$bmAg_JR2000_ll_1km_eur[b] <- NA
-    }
-    if (b == length(c))
-      close(pb)
-  }
-  cat(" | Tile ", i , " Out of ", length(list_f) , " Done ")
-  df <- rbind(df, c)
-}
-# delete features with NA values
-pol_sel <- df[!is.na(df$bmAg_JR2000_ll_1km_eur),]
-
-# safe output 
-writeOGR(pol_sel, dsn = paste0(getwd(), '/data/Output'), layer = "pol_sel_EU", driver = "ESRI Shapefile")
-
-#------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------
-
-### old
-# plot
-plot(H[[1]])
-plot(input, add = T)
-
-# set features to NA if below/above a certain threshold (here landscape.division.index > .15)
-for (i in 1:length(rastopol)){
-  # create progress bar
-  pb <- winProgressBar(title = "progress bar", min = 0,
-                       max = length(rastopol), width = 300)
-  Sys.sleep(0.1)
-  setWinProgressBar(pb, i, title=paste(round(i/length(rastopol)*100, 0),
-                                       "% done"))
-                    
-  c <- crop(H[[1]],rastopol[i,])
-  SDM <- SDM_function(c)
-  if (SDM$lanscape.division.index > .15)
-    rastopol$bmAg_JR2000_ll_1km_eur[i] <- NA
-  if (i == length(rastopol))
-    close(pb)
-}
-
-# delete features with NA values
-pol_sel <- rastopol[!is.na(rastopol$bmAg_JR2000_ll_1km_eur),]
-
-# safe output 
-writeOGR(pol_sel, dsn = paste0(getwd(), '/data/Output'), layer = "pol_sel_NL", driver = "ESRI Shapefile")
-
-
-# -------------------------------------------------------------------------------------------------------------- #
-
-# Read biomass polygons
-ref_pol <- readOGR(dsn = "./data/Output", layer = "pol_sel_NL")
-
-# select intersecting points from rasterized polygons
-ref_data <- crop(df_final, ref_pol)
-
-# -------------------------------------------------------------------------------------------------------------- #
-
-# Rasterize points 
-# The whole upper section of this script can be simplified by running the rasterize function,
-# instead of keep working with spatialpointsdataframes
-ref_ras <- rasterize(ref_data, ras, ref_data$bmAg_JR2000_ll_1km_eur_Crop, fun=mean) 
-writeRaster(ref_ras, filename = './Maps/Ref/ref_ras.tif') 
-
 # -------------------------------------------------------------------------------------------------------------- #
 # Download country boundaries
+# If you wish to download VCF data by country, see below
+
 Country <- 'DEU' # run ccodes() to check for country codes
 dir.create("./data/")
 dir.create("./data/Boundaries")
@@ -267,46 +186,46 @@ for (i in 1:length(ls)){
 dirs <- "ftp://ftp.glcf.umd.edu/glcf/Global_VCF/Collection_5/2005"
 
 
-fls <- character()
-library(RCurl)
-getContent <- function(dirs) {
-  urls <- paste(dirs, "/", sep="")
-  fls <- strsplit(getURL(urls, dirlistonly=TRUE), "\r?\n")
-  ok <- sapply(fls, length) > 0
-  unlist(mapply(paste, urls[ok], fls[ok], sep="", SIMPLIFY=FALSE),
-         use.names=FALSE)
-}
-
-while (length(dirs)) {
-  message(length(dirs))
-  urls <- getContent(dirs)
-  isgz <- grepl("gz$", urls)
-  fls <- append(fls, urls[isgz])
-  dirs <- urls[!isgz]
-}
-
-urls <- getContent(dirs)
-isgz <- grepl("gz$", urls)
-fls <- append(fls, urls[isgz])
-
-# Download and unpack MODIS VCF.
-# Downloads ALL the tiles. no documentation found on tile numbers for the VCF product.
-dir.create("./Covariates/MODIS_VCF_2005", showWarnings = F)
-dir.create("./Covariates/", showWarnings = F)
-url_ls <- fls
-
-for (i in 1:length(fls)){
-  url_s <- url_ls[i]
-  downloadname <- strsplit(url_s, "/")
-  downloadname <- unlist(downloadname)
-  downloadname <- downloadname[length(downloadname)]
-  file_name <- paste0("D:/R_Projects/EU_Biomass/Covariates/MODIS_VCF_2005/", downloadname)
-  file_name2 <- substr(file_name, 1, nchar(file_name)-3)
-  if (!file.exists(file_name2)){
-    download.file(url = url_s, destfile = file_name)
-    R.utils::gunzip(filename=file_name, remove=T, overwrite = F)
-  }
-}
+# fls <- character()
+# library(RCurl)
+# getContent <- function(dirs) {
+#   urls <- paste(dirs, "/", sep="")
+#   fls <- strsplit(getURL(urls, dirlistonly=TRUE), "\r?\n")
+#   ok <- sapply(fls, length) > 0
+#   unlist(mapply(paste, urls[ok], fls[ok], sep="", SIMPLIFY=FALSE),
+#          use.names=FALSE)
+# }
+# 
+# while (length(dirs)) {
+#   message(length(dirs))
+#   urls <- getContent(dirs)
+#   isgz <- grepl("gz$", urls)
+#   fls <- append(fls, urls[isgz])
+#   dirs <- urls[!isgz]
+# }
+# 
+# urls <- getContent(dirs)
+# isgz <- grepl("gz$", urls)
+# fls <- append(fls, urls[isgz])
+# 
+# # Download and unpack MODIS VCF.
+# # Downloads ALL the tiles. no documentation found on tile numbers for the VCF product.
+# dir.create("./Covariates/MODIS_VCF_2005", showWarnings = F)
+# dir.create("./Covariates/", showWarnings = F)
+# url_ls <- fls
+# 
+# for (i in 1:length(fls)){
+#   url_s <- url_ls[i]
+#   downloadname <- strsplit(url_s, "/")
+#   downloadname <- unlist(downloadname)
+#   downloadname <- downloadname[length(downloadname)]
+#   file_name <- paste0("D:/R_Projects/EU_Biomass/Covariates/MODIS_VCF_2005/", downloadname)
+#   file_name2 <- substr(file_name, 1, nchar(file_name)-3)
+#   if (!file.exists(file_name2)){
+#     download.file(url = url_s, destfile = file_name)
+#     R.utils::gunzip(filename=file_name, remove=T, overwrite = F)
+#   }
+# }
 
 #####################################################################################################
 #####################################################################################################
@@ -400,11 +319,6 @@ writeRaster(t, "./Covariates/Outputs/MODIS_VCF/Mosaic/Mosaic_aggre.tif", overwri
 s <- stack(raster("./Covariates/Outputs/MODIS_VCF/Mosaic/Mosaic_aggre_align.tif"),Gal)
 ### plotting
 plot(t)
-
-### cropping
-#t <- raster("./Covariates/MODIS_VCF_2005/transformed/Mosaic/Mosaic.tif")
-#crop(t,Gal, filename = "./Covariates/MODIS_VCF_2005/transformed/Mosaic/MODIS_VCF_Mosaic.tif", overwrite = T)
-
 
 ### plotting
 plot(t)
